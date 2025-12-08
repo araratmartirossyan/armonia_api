@@ -7,8 +7,14 @@ import fs from 'fs';
 import path from 'path';
 import { ragService } from '../services/ragService';
 
-// pdf-parse is a CommonJS module, use require
-const pdfParse = require('pdf-parse');
+// Lazy load pdf-parse only when needed to avoid memory issues at startup
+let pdfParse: any = null;
+const getPdfParse = () => {
+  if (!pdfParse) {
+    pdfParse = require('pdf-parse');
+  }
+  return pdfParse;
+};
 
 const kbRepository = AppDataSource.getRepository(KnowledgeBase);
 const licenseRepository = AppDataSource.getRepository(License);
@@ -114,9 +120,10 @@ export const uploadPDF = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Knowledge base not found' });
     }
 
-    // Read and parse PDF
+    // Read and parse PDF (lazy load pdf-parse to avoid memory issues at startup)
     const dataBuffer = fs.readFileSync(file.path);
-    const pdfData = await pdfParse(dataBuffer);
+    const pdfParseFn = getPdfParse();
+    const pdfData = await pdfParseFn(dataBuffer);
     const textContent = pdfData.text;
 
     if (!textContent || textContent.trim().length === 0) {
