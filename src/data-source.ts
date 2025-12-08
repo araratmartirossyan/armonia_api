@@ -7,15 +7,7 @@ import { Configuration } from './entities/Configuration';
 import { Document } from './entities/Document';
 import dotenv from 'dotenv';
 dotenv.config();
-console.log(process.env.DB_HOST);
-console.log(process.env.DB_PORT);
-console.log(process.env.DB_USERNAME);
-console.log(process.env.DB_PASSWORD);
-console.log(process.env.DB_NAME);
-console.log(process.env.DB_LOGGING);
-console.log(process.env.NODE_ENV);
-console.log(process.env.OPENAI_API_KEY);
-console.log(process.env.GEMINI_API_KEY);
+
 export const AppDataSource = new DataSource({
   type: 'postgres',
   host: process.env.DB_HOST || 'localhost',
