@@ -6,7 +6,6 @@
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
     "build": "tsc",
-    "postinstall": "yarn build",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts",
     "typeorm": "typeorm-ts-node-commonjs",
