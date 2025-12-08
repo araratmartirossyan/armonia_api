@@ -75,6 +75,11 @@ export class RagService {
     const response = await llm.invoke(prompt);
     return response.content;
   }
+
+  async deleteKnowledgeBase(kbId: string) {
+    // Remove vector store for this knowledge base
+    vectorStores.delete(kbId);
+  }
 }
 
 export const ragService = new RagService();

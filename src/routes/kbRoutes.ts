@@ -5,6 +5,7 @@ import {
   attachToLicense,
   getKnowledgeBase,
   uploadPDF,
+  deleteKnowledgeBase,
 } from '../controllers/kbController';
 import { authMiddleware } from '../middlewares/auth';
 import { roleGuard } from '../middlewares/roleGuard';
@@ -171,7 +172,7 @@ router.get('/:id', roleGuard([UserRole.ADMIN]), getKnowledgeBase);
  * @swagger
  * /knowledge-bases/{id}/upload:
  *   post:
- *     summary: Upload a PDF file to a knowledge base (Admin only)
+ *     summary: Upload multiple PDF files to a knowledge base (Admin only)
  *     tags: [Knowledge Bases]
  *     security:
  *       - bearerAuth: []
@@ -190,15 +191,17 @@ router.get('/:id', roleGuard([UserRole.ADMIN]), getKnowledgeBase);
  *           schema:
  *             type: object
  *             required:
- *               - file
+ *               - files
  *             properties:
- *               file:
- *                 type: string
- *                 format: binary
- *                 description: PDF file to upload
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: PDF files to upload (up to 10 files)
  *     responses:
  *       201:
- *         description: PDF uploaded and ingested successfully
+ *         description: PDF files uploaded and ingested successfully
  *         content:
  *           application/json:
  *             schema:
@@ -206,22 +209,34 @@ router.get('/:id', roleGuard([UserRole.ADMIN]), getKnowledgeBase);
  *               properties:
  *                 message:
  *                   type: string
- *                   example: PDF uploaded and ingested successfully
- *                 document:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       format: uuid
- *                     fileName:
- *                       type: string
- *                     pageCount:
- *                       type: number
- *                     createdAt:
- *                       type: string
- *                       format: date-time
+ *                   example: 2 PDF file(s) uploaded and ingested successfully
+ *                 documents:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                       fileName:
+ *                         type: string
+ *                       pageCount:
+ *                         type: number
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       fileName:
+ *                         type: string
+ *                       error:
+ *                         type: string
+ *                   description: Errors for files that failed to upload (if any)
  *       400:
- *         description: Bad request - Missing file or kbId, or empty PDF
+ *         description: Bad request - No files uploaded or all files failed
  *         content:
  *           application/json:
  *             schema:
@@ -239,12 +254,63 @@ router.get('/:id', roleGuard([UserRole.ADMIN]), getKnowledgeBase);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  *       500:
- *         description: Error uploading PDF
+ *         description: Error uploading PDFs
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/:id/upload', roleGuard([UserRole.ADMIN]), upload.single('file'), uploadPDF);
+router.post('/:id/upload', roleGuard([UserRole.ADMIN]), upload.array('files', 10), uploadPDF);
+
+/**
+ * @swagger
+ * /knowledge-bases/{id}:
+ *   delete:
+ *     summary: Delete a knowledge base (Admin only)
+ *     tags: [Knowledge Bases]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Knowledge Base ID
+ *     responses:
+ *       200:
+ *         description: Knowledge base deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Knowledge base deleted successfully
+ *                 deletedDocuments:
+ *                   type: number
+ *                   description: Number of documents that were deleted
+ *       404:
+ *         description: Knowledge base not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden - Admin access required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error deleting knowledge base
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.delete('/:id', roleGuard([UserRole.ADMIN]), deleteKnowledgeBase);
 
 export default router;

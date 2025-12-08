@@ -95,17 +95,19 @@ export const attachToLicense = async (req: Request, res: Response) => {
 
 export const uploadPDF = async (req: Request, res: Response) => {
   const { id: kbId } = req.params; // Get kbId from URL parameter
-  const file = req.file;
+  const files = req.files as Express.Multer.File[];
 
-  if (!file) {
-    return res.status(400).json({ message: 'No PDF file uploaded' });
+  if (!files || files.length === 0) {
+    return res.status(400).json({ message: 'No PDF files uploaded' });
   }
 
   if (!kbId) {
-    // Clean up uploaded file if kbId is missing
-    if (file && fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
-    }
+    // Clean up uploaded files if kbId is missing
+    files.forEach((file) => {
+      if (file && fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    });
     return res.status(400).json({ message: 'Knowledge base ID is required' });
   }
 
@@ -116,57 +118,157 @@ export const uploadPDF = async (req: Request, res: Response) => {
     });
 
     if (!kb) {
-      fs.unlinkSync(file.path);
+      // Clean up all uploaded files
+      files.forEach((file) => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
       return res.status(404).json({ message: 'Knowledge base not found' });
     }
 
-    // Read and parse PDF (lazy load pdf-parse to avoid memory issues at startup)
-    const dataBuffer = fs.readFileSync(file.path);
-    const pdfParseFn = getPdfParse();
-    const pdfData = await pdfParseFn(dataBuffer);
-    const textContent = pdfData.text;
+    const uploadedDocuments = [];
+    const errors = [];
 
-    if (!textContent || textContent.trim().length === 0) {
-      fs.unlinkSync(file.path);
-      return res.status(400).json({ message: 'PDF file appears to be empty or contains no extractable text' });
+    // Process each file
+    for (const file of files) {
+      try {
+        // Read and parse PDF (lazy load pdf-parse to avoid memory issues at startup)
+        const dataBuffer = fs.readFileSync(file.path);
+        const pdfParseFn = getPdfParse();
+        const pdfData = await pdfParseFn(dataBuffer);
+        const textContent = pdfData.text;
+
+        if (!textContent || textContent.trim().length === 0) {
+          fs.unlinkSync(file.path);
+          errors.push({
+            fileName: file.originalname,
+            error: 'PDF file appears to be empty or contains no extractable text',
+          });
+          continue;
+        }
+
+        // Save document metadata to database
+        const document = documentRepository.create({
+          fileName: file.originalname,
+          filePath: file.path,
+          knowledgeBaseId: kbId,
+          metadata: {
+            fileSize: file.size,
+            pageCount: pdfData.numpages,
+            uploadedAt: new Date().toISOString(),
+          },
+        });
+
+        await documentRepository.save(document);
+
+        // Ingest document text into RAG service (using kbId, not licenseKey)
+        await ragService.ingestDocument(kbId, textContent, {
+          fileName: file.originalname,
+          documentId: document.id,
+          pageCount: pdfData.numpages,
+        });
+
+        uploadedDocuments.push({
+          id: document.id,
+          fileName: document.fileName,
+          pageCount: pdfData.numpages,
+          createdAt: document.createdAt,
+        });
+      } catch (error: any) {
+        console.error(`Error processing file ${file.originalname}:`, error);
+        // Clean up file on error
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+        errors.push({
+          fileName: file.originalname,
+          error: error.message || 'Unknown error processing file',
+        });
+      }
     }
 
-    // Save document metadata to database
-    const document = documentRepository.create({
-      fileName: file.originalname,
-      filePath: file.path,
-      knowledgeBaseId: kbId,
-      metadata: {
-        fileSize: file.size,
-        pageCount: pdfData.numpages,
-        uploadedAt: new Date().toISOString(),
-      },
-    });
-
-    await documentRepository.save(document);
-
-    // Ingest document text into RAG service (using kbId, not licenseKey)
-    await ragService.ingestDocument(kbId, textContent, {
-      fileName: file.originalname,
-      documentId: document.id,
-      pageCount: pdfData.numpages,
-    });
+    // Return results
+    if (uploadedDocuments.length === 0) {
+      return res.status(400).json({
+        message: 'No files were successfully uploaded',
+        errors,
+      });
+    }
 
     return res.status(201).json({
-      message: 'PDF uploaded and ingested successfully',
-      document: {
-        id: document.id,
-        fileName: document.fileName,
-        pageCount: pdfData.numpages,
-        createdAt: document.createdAt,
-      },
+      message: `${uploadedDocuments.length} PDF file(s) uploaded and ingested successfully`,
+      documents: uploadedDocuments,
+      errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error: any) {
-    console.error('Error uploading PDF:', error);
-    // Clean up uploaded file on error
-    if (fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
+    console.error('Error uploading PDFs:', error);
+    // Clean up all uploaded files on error
+    files.forEach((file) => {
+      if (fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    });
+    return res.status(500).json({ message: 'Error uploading PDFs: ' + (error.message || 'Unknown error') });
+  }
+};
+
+export const deleteKnowledgeBase = async (req: Request, res: Response) => {
+  const { id: kbId } = req.params;
+
+  try {
+    // Get knowledge base with relations
+    const kb = await kbRepository.findOne({
+      where: { id: kbId },
+      relations: ['licenses', 'pdfDocuments'],
+    });
+
+    if (!kb) {
+      return res.status(404).json({ message: 'Knowledge base not found' });
     }
-    return res.status(500).json({ message: 'Error uploading PDF: ' + (error.message || 'Unknown error') });
+
+    // Get all documents to delete their files
+    const documents = await documentRepository.find({
+      where: { knowledgeBaseId: kbId },
+    });
+
+    // Delete PDF files from filesystem
+    documents.forEach((doc) => {
+      if (fs.existsSync(doc.filePath)) {
+        try {
+          fs.unlinkSync(doc.filePath);
+        } catch (error) {
+          console.error(`Error deleting file ${doc.filePath}:`, error);
+        }
+      }
+    });
+
+    // Remove KB from all licenses (ManyToMany relationship)
+    if (kb.licenses && kb.licenses.length > 0) {
+      for (const license of kb.licenses) {
+        const licenseWithKBs = await licenseRepository.findOne({
+          where: { id: license.id },
+          relations: ['knowledgeBases'],
+        });
+        if (licenseWithKBs) {
+          licenseWithKBs.knowledgeBases = licenseWithKBs.knowledgeBases.filter((kb) => kb.id !== kbId);
+          await licenseRepository.save(licenseWithKBs);
+        }
+      }
+    }
+
+    // Delete vector store for this KB
+    await ragService.deleteKnowledgeBase(kbId);
+
+    // Delete knowledge base (documents will be cascade deleted due to onDelete: 'CASCADE')
+    await kbRepository.remove(kb);
+
+    return res.json({
+      message: 'Knowledge base deleted successfully',
+      deletedDocuments: documents.length,
+    });
+  } catch (error) {
+    console.error('Error deleting knowledge base:', error);
+    return res.status(500).json({ message: 'Error deleting knowledge base' });
   }
 };

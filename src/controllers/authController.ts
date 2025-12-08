@@ -52,7 +52,7 @@ export const login = async ({ body: { email, password } }: Request, res: Respons
     }
 
     const token = signToken({ userId: user.id, role: user.role });
-    return res.json({ token, user: { id: user.id, email: user.email, role: user.role } });
+    return res.json({ token, user: { id: user.id, email: user.email, role: user.role }, license: license?.key });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Internal server error' });
