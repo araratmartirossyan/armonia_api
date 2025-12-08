@@ -3,36 +3,18 @@ import { OpenAIEmbeddings } from '@langchain/openai';
 import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
 import { LLMProvider } from '../entities/KnowledgeBase';
 
+const OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small'; // 1536 dimensions
+
 export class EmbeddingsProviderService {
-  static async getEmbeddings(provider: LLMProvider): Promise<Embeddings> {
-    switch (provider) {
-      case LLMProvider.OPENAI:
-        return new OpenAIEmbeddings({
-          openAIApiKey: process.env.OPENAI_API_KEY,
-        });
-
-      case LLMProvider.GEMINI:
-        if (!process.env.GEMINI_API_KEY) {
-          // Fallback to OpenAI if Gemini key not set
-          return new OpenAIEmbeddings({
-            openAIApiKey: process.env.OPENAI_API_KEY,
-          });
-        }
-        return new GoogleGenerativeAIEmbeddings({
-          modelName: 'models/embedding-001',
-          apiKey: process.env.GEMINI_API_KEY,
-        });
-
-      case LLMProvider.ANTHROPIC:
-        // Anthropic doesn't have embeddings, use OpenAI as fallback
-        return new OpenAIEmbeddings({
-          openAIApiKey: process.env.OPENAI_API_KEY,
-        });
-
-      default:
-        return new OpenAIEmbeddings({
-          openAIApiKey: process.env.OPENAI_API_KEY,
-        });
+  static async getEmbeddings(): Promise<Embeddings> {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY is not set in environment variables');
     }
+
+    // Force using OpenAI embeddings for pgvector compatibility (1536 dims)
+    return new OpenAIEmbeddings({
+      openAIApiKey: process.env.OPENAI_API_KEY,
+      model: OPENAI_EMBEDDING_MODEL,
+    });
   }
 }
