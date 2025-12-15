@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listUsers, getUser, deleteUser } from '../controllers/userController';
+import { listUsers, getUser, deleteUser, updateUser } from '../controllers/userController';
 import { authMiddleware } from '../middlewares/auth';
 import { roleGuard } from '../middlewares/roleGuard';
 import { UserRole } from '../entities/User';
@@ -83,6 +83,56 @@ router.get('/', roleGuard([UserRole.ADMIN]), listUsers);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/:id', roleGuard([UserRole.ADMIN]), getUser);
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   put:
+ *     summary: Update a user profile (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateUserRequest'
+ *     responses:
+ *       200:
+ *         description: Updated user (password excluded)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden - Admin access required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error updating user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.put('/:id', roleGuard([UserRole.ADMIN]), updateUser);
 
 /**
  * @swagger

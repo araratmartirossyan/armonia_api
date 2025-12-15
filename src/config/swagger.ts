@@ -303,6 +303,50 @@ const swaggerDefinition = {
           },
         },
       },
+      UpdateUserRequest: {
+        type: 'object',
+        description: 'Update user profile fields (Admin only)',
+        properties: {
+          legalName: {
+            type: 'string',
+            nullable: true,
+          },
+          centerName: {
+            type: 'string',
+            nullable: true,
+          },
+          customerStatus: {
+            type: 'string',
+            enum: [
+              'Activation Request',
+              'In Progress',
+              'In Test',
+              'Active',
+              'Unpaid',
+              'Terminated',
+              'Terminated - Blacklist',
+              'Demo',
+            ],
+            nullable: true,
+          },
+          contactPerson: {
+            type: 'string',
+            nullable: true,
+          },
+          contactNumber: {
+            type: 'string',
+            nullable: true,
+          },
+          address: {
+            type: 'string',
+            nullable: true,
+          },
+          assignedAgentFullName: {
+            type: 'string',
+            nullable: true,
+          },
+        },
+      },
       LoginRequest: {
         type: 'object',
         required: ['email', 'password'],

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../data-source';
-import { User } from '../entities/User';
+import { CustomerStatus, User } from '../entities/User';
 import { sanitizeUser } from '../utils/userUtils';
 
 const userRepository = AppDataSource.getRepository(User);
@@ -75,5 +75,49 @@ export const deleteUser = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Error deleting user' });
+  }
+};
+
+export const updateUser = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const {
+    legalName,
+    centerName,
+    customerStatus,
+    contactPerson,
+    contactNumber,
+    address,
+    assignedAgentFullName,
+  } = req.body;
+
+  try {
+    const user = await userRepository.findOne({
+      where: { id },
+      relations: ['license'],
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (legalName !== undefined) user.legalName = legalName ?? null;
+    if (centerName !== undefined) user.centerName = centerName ?? null;
+    if (customerStatus !== undefined) user.customerStatus = customerStatus ?? CustomerStatus.ACTIVATION_REQUEST;
+    if (contactPerson !== undefined) user.contactPerson = contactPerson ?? null;
+    if (contactNumber !== undefined) user.contactNumber = contactNumber ?? null;
+    if (address !== undefined) user.address = address ?? null;
+    if (assignedAgentFullName !== undefined) user.assignedAgentFullName = assignedAgentFullName ?? null;
+
+    await userRepository.save(user);
+
+    const updated = await userRepository.findOne({
+      where: { id },
+      relations: ['license'],
+    });
+
+    return res.json(updated ? sanitizeUser(updated) : sanitizeUser(user));
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Error updating user' });
   }
 };
