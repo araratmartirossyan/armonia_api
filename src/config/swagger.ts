@@ -10,12 +10,8 @@ const swaggerDefinition = {
       name: 'API Support',
     },
   },
-  servers: [
-    {
-      url: `http://localhost:${process.env.PORT || 3000}`,
-      description: 'Development server',
-    },
-  ],
+  // NOTE: Don't hardcode localhost here; we set `servers` dynamically in `/api-docs.json`
+  // so Swagger works correctly behind reverse proxies and in production.
   components: {
     securitySchemes: {
       bearerAuth: {

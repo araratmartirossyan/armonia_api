@@ -15,7 +15,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_NAME || 'beauty_db',
-  synchronize: process.env.NODE_ENV !== 'production', // Set to false in production and use migrations
+  synchronize: true, // Set to false in production and use migrations
   logging: process.env.DB_LOGGING === 'true',
   entities: [User, License, KnowledgeBase, Configuration, Document],
   migrations: [],

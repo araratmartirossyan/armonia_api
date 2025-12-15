@@ -17,12 +17,29 @@ app.use(helmet());
 app.use(express.json());
 
 // Swagger documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(undefined, {
+    swaggerOptions: {
+      url: '/api-docs.json',
+    },
+  }),
+);
 
 // Swagger JSON endpoint for download
 app.get('/api-docs.json', (req, res) => {
+  const forwardedProto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim();
+  const forwardedHost = (req.headers['x-forwarded-host'] as string | undefined)?.split(',')[0]?.trim();
+  const proto = forwardedProto || req.protocol;
+  const host = forwardedHost || req.get('host');
+  const baseUrl = host ? `${proto}://${host}` : `http://localhost:${PORT}`;
+
   res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
+  res.send({
+    ...swaggerSpec,
+    servers: [{ url: baseUrl }],
+  });
 });
 
 import authRoutes from './routes/authRoutes';
