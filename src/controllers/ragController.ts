@@ -9,7 +9,7 @@ const licenseRepository = AppDataSource.getRepository(License);
 const kbRepository = AppDataSource.getRepository(KnowledgeBase);
 
 export const chat = async (req: Request, res: Response) => {
-  const { question, licenseKey, kbId } = req.body;
+  const { question, licenseKey, kbId, history } = req.body;
   const user = req.user;
 
   if (!user) {
@@ -66,7 +66,12 @@ export const chat = async (req: Request, res: Response) => {
     }
 
     // Query using kbId instead of licenseKey
-    const answer = await ragService.query(knowledgeBase.id, question, knowledgeBase.promptInstructions);
+    const answer = await ragService.query(
+      knowledgeBase.id,
+      question,
+      knowledgeBase.promptInstructions,
+      Array.isArray(history) ? history : undefined,
+    );
     return res.json({ answer });
   } catch (error: any) {
     console.error(error);

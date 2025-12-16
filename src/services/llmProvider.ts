@@ -19,13 +19,14 @@ const getGlobalConfig = async (): Promise<Configuration> => {
     config = configRepository.create({
       key: DEFAULT_CONFIG_KEY,
       llmProvider: LLMProvider.OPENAI,
-      model: null,
-      temperature: null,
-      maxTokens: null,
-      topP: null,
+      // Strong defaults for RAG (can be changed via config endpoints)
+      model: 'gpt-5',
+      temperature: 0.1,
+      maxTokens: 1200,
+      topP: 1,
       topK: null,
-      frequencyPenalty: null,
-      presencePenalty: null,
+      frequencyPenalty: 0,
+      presencePenalty: 0,
       stopSequences: null,
     });
     await configRepository.save(config);
@@ -44,7 +45,7 @@ export class LLMProviderService {
           throw new Error('OPENAI_API_KEY is not set in environment variables');
         }
         const openAIConfig: any = {
-          modelName: config.model || 'gpt-3.5-turbo',
+          modelName: config.model || 'gpt-4o',
           openAIApiKey: process.env.OPENAI_API_KEY,
         };
         if (config.temperature !== null) openAIConfig.temperature = config.temperature;
@@ -93,7 +94,7 @@ export class LLMProviderService {
           throw new Error('OPENAI_API_KEY is not set in environment variables');
         }
         return new ChatOpenAI({
-          modelName: config.model || 'gpt-3.5-turbo',
+          modelName: config.model || 'gpt-4o',
           openAIApiKey: process.env.OPENAI_API_KEY,
         });
     }

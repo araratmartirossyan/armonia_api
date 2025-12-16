@@ -600,6 +600,25 @@ const swaggerDefinition = {
             nullable: true,
             description: 'Knowledge Base ID to use (optional, uses first KB if not specified)',
           },
+          history: {
+            type: 'array',
+            nullable: true,
+            description:
+              'Optional conversation history to make the chat context-aware. Send the last N turns (recommended <= 12).',
+            items: {
+              type: 'object',
+              required: ['role', 'content'],
+              properties: {
+                role: {
+                  type: 'string',
+                  enum: ['system', 'user', 'assistant'],
+                },
+                content: {
+                  type: 'string',
+                },
+              },
+            },
+          },
         },
       },
       ChatResponse: {

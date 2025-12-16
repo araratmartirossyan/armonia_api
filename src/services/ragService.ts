@@ -1,4 +1,5 @@
 import { Document } from '@langchain/core/documents';
+import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { LLMProvider } from '../entities/KnowledgeBase';
 import { LLMProviderService } from './llmProvider';
@@ -17,13 +18,14 @@ const getGlobalConfig = async (): Promise<Configuration> => {
     config = configRepository.create({
       key: DEFAULT_CONFIG_KEY,
       llmProvider: LLMProvider.OPENAI,
-      model: null,
-      temperature: null,
-      maxTokens: null,
-      topP: null,
+      // Strong defaults for RAG (can be changed via config endpoints)
+      model: 'gpt-4o',
+      temperature: 0.1,
+      maxTokens: 1200,
+      topP: 1,
       topK: null,
-      frequencyPenalty: null,
-      presencePenalty: null,
+      frequencyPenalty: 0,
+      presencePenalty: 0,
       stopSequences: null,
     });
     await configRepository.save(config);
@@ -104,26 +106,73 @@ export class RagService {
     }
   }
 
-  async query(kbId: string, question: string, promptInstructions: string | null = null) {
+  async query(
+    kbId: string,
+    question: string,
+    promptInstructions: string | null = null,
+    historyRaw?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
+  ) {
     await this.ensurePgVectorSchema();
     const embeddings = await EmbeddingsProviderService.getEmbeddings();
     const store = new PostgresVectorStore(embeddings, pgPool, kbId);
 
     const queryVector = await embeddings.embedQuery(question);
-    const results = await store.similaritySearchVectorWithScore(queryVector, 4);
+    const topK = Number(process.env.RAG_TOP_K || 8);
+    const results = await store.similaritySearchVectorWithScore(queryVector, Number.isFinite(topK) ? topK : 8);
     if (results.length === 0) {
       return 'No documents found in this knowledge base. Please upload PDF documents first.';
     }
-    const context = results.map(([doc]: [Document, number]) => doc.pageContent).join('\n\n');
-    // Build prompt with custom instructions if provided
-    let prompt = '';
-    if (promptInstructions) {
-      prompt += `You must strictly follow these instructions:\n${promptInstructions}\n\n`;
+    const context = results
+      .map(([doc, score]: [Document, number], idx: number) => {
+        const sourceParts: string[] = [];
+        if (doc.metadata?.fileName) sourceParts.push(String(doc.metadata.fileName));
+        if (doc.metadata?.documentId) sourceParts.push(`documentId=${doc.metadata.documentId}`);
+        const source = sourceParts.length ? sourceParts.join(' | ') : 'unknown';
+        return `### Source ${idx + 1} (score=${score.toFixed(4)}): ${source}\n\n${doc.pageContent}`;
+      })
+      .join('\n\n---\n\n');
+
+    const systemRules = [
+      promptInstructions ? `Knowledge base instructions:\n${promptInstructions}` : null,
+      `You are a RAG assistant. Answer using ONLY the provided CONTEXT and the conversation history.`,
+      `If the answer is not in the context, say: "I don't have that information in the uploaded documents."`,
+      `Return the answer in Markdown.`,
+      `When possible, include a short "Sources" section listing which Source numbers you used.`,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
+    const history: BaseMessage[] = [];
+    if (Array.isArray(historyRaw)) {
+      for (const item of historyRaw.slice(-12)) {
+        if (!item?.content) continue;
+        if (item.role === 'system') history.push(new SystemMessage(String(item.content)));
+        else if (item.role === 'assistant') history.push(new AIMessage(String(item.content)));
+        else history.push(new HumanMessage(String(item.content)));
+      }
     }
-    prompt += `Answer the question based only on the following context:\n\n${context}\n\nQuestion: ${question}`;
-    const llm = await LLMProviderService.getLLM();
-    const response = await llm.invoke(prompt);
-    return response.content;
+
+    const messages: BaseMessage[] = [
+      new SystemMessage(systemRules),
+      ...history,
+      new HumanMessage(`CONTEXT:\n\n${context}\n\nUSER QUESTION:\n${question}\n\nRemember: output Markdown.`),
+    ];
+
+    const llm: any = await LLMProviderService.getLLM();
+    try {
+      const response = await llm.invoke(messages);
+      return (response as any)?.content ?? String(response);
+    } catch (e) {
+      // Fallback for providers/configs that don't accept structured chat messages
+      const prompt = `${systemRules}\n\n${history
+        .map((m) => {
+          const t = (m as any)?._getType?.() || (m as any)?.constructor?.name || 'message';
+          return `${t}: ${(m as any).content}`;
+        })
+        .join('\n')}\n\nCONTEXT:\n\n${context}\n\nQUESTION: ${question}\n\nReturn Markdown.`;
+      const response = await llm.invoke(prompt);
+      return (response as any)?.content ?? String(response);
+    }
   }
 
   async deleteKnowledgeBase(kbId: string) {
