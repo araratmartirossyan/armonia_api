@@ -1,107 +1,31 @@
 import { Document } from '@langchain/core/documents';
-import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { BaseMessage } from '@langchain/core/messages';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
-import { LLMProvider } from '../entities/KnowledgeBase';
 import { LLMProviderService } from './llmProvider';
 import { EmbeddingsProviderService } from './embeddingsProvider';
-import { AppDataSource } from '../data-source';
-import { Configuration } from '../entities/Configuration';
 import { PostgresVectorStore } from '../utils/postgresVectorStore';
 import { pgPool } from '../db/pgPool';
-
-const configRepository = AppDataSource.getRepository(Configuration);
-const DEFAULT_CONFIG_KEY = 'default';
-
-const getGlobalConfig = async (): Promise<Configuration> => {
-  let config = await configRepository.findOne({ where: { key: DEFAULT_CONFIG_KEY } });
-  if (!config) {
-    config = configRepository.create({
-      key: DEFAULT_CONFIG_KEY,
-      llmProvider: LLMProvider.OPENAI,
-      // Strong defaults for RAG (can be changed via config endpoints)
-      model: 'gpt-4o',
-      temperature: 0.1,
-      maxTokens: 1200,
-      topP: 1,
-      topK: null,
-      frequencyPenalty: 0,
-      presencePenalty: 0,
-      stopSequences: null,
-    });
-    await configRepository.save(config);
-  }
-  return config;
-};
-
-// Ensure pgvector schema exists (run once per process)
-let pgVectorInitialized = false;
-const PGVECTOR_DIMENSION = 1536; // text-embedding-3-small
+import { ensurePgVectorSchema } from './rag/ragSchema';
+import { buildSources, formatSourcesSection, loadDocumentNames } from './rag/ragSources';
+import { buildHistoryMessages, buildMessages, buildSystemRules, trimInstructions } from './rag/ragPrompt';
 
 export class RagService {
-  private async ensurePgVectorSchema() {
-    if (pgVectorInitialized) return;
-    const client = await pgPool.connect();
-    try {
-      await client.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
-      await client.query(`CREATE EXTENSION IF NOT EXISTS vector;`);
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS kb_documents (
-          id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-          kb_id text NOT NULL,
-          content text NOT NULL,
-          metadata jsonb,
-          embedding vector(${PGVECTOR_DIMENSION}) NOT NULL
-        );
-      `);
-      await client.query(`CREATE INDEX IF NOT EXISTS kb_documents_kb_id_idx ON kb_documents (kb_id);`);
-      await client.query(`
-        CREATE INDEX IF NOT EXISTS kb_documents_embedding_hnsw_idx
-        ON kb_documents
-        USING hnsw (embedding vector_cosine_ops)
-        WITH (m = 16, ef_construction = 64);
-      `);
-      pgVectorInitialized = true;
-    } finally {
-      client.release();
-    }
-  }
-
   async ingestDocument(kbId: string, text: string, metadata: any) {
-    const start = Date.now();
-    console.log('[ragService.ingestDocument] start', {
-      kbId,
-      textLength: text?.length,
-    });
-    await this.ensurePgVectorSchema();
-    const config = await getGlobalConfig();
+    await ensurePgVectorSchema(pgPool);
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1000,
       chunkOverlap: 200,
     });
 
-    const docs = await splitter.createDocuments([text], metadata);
-    console.log('[ragService.ingestDocument] split docs', {
-      kbId,
-      chunkCount: docs.length,
-      metadataKeys: Object.keys(metadata || {}),
-    });
+    // LangChain expects an array of metadata objects aligned with texts.
+    // Passing a plain object can result in missing per-chunk metadata → "unknown" sources.
+    const docs = await splitter.createDocuments([text], [metadata ?? {}]);
+
     try {
-      console.log('[ragService.ingestDocument] get embeddings', { kbId });
       const embeddings = await EmbeddingsProviderService.getEmbeddings();
-      console.log('[ragService.ingestDocument] got embeddings', { kbId });
       const store = new PostgresVectorStore(embeddings, pgPool, kbId);
-      console.log('[ragService.ingestDocument] add documents', { kbId, rows: docs.length });
       await store.addDocuments(docs);
-      console.log('[ragService.ingestDocument] stored embeddings', {
-        kbId,
-        rows: docs.length,
-        ms: Date.now() - start,
-      });
     } catch (err: any) {
-      console.error('[ragService.ingestDocument] error', {
-        kbId,
-        message: err?.message,
-      });
       throw err;
     }
   }
@@ -112,69 +36,56 @@ export class RagService {
     promptInstructions: string | null = null,
     historyRaw?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
   ) {
-    await this.ensurePgVectorSchema();
+    const t0 = Date.now();
+    await ensurePgVectorSchema(pgPool);
+    const tSchema = Date.now();
     const embeddings = await EmbeddingsProviderService.getEmbeddings();
     const store = new PostgresVectorStore(embeddings, pgPool, kbId);
 
+    const tEmbModel = Date.now();
     const queryVector = await embeddings.embedQuery(question);
+    const tEmbed = Date.now();
     const envTopK = Number(process.env.RAG_TOP_K || 4);
     const topK = Number.isFinite(envTopK) ? Math.min(Math.max(envTopK, 2), 12) : 4;
     const results = await store.similaritySearchVectorWithScore(queryVector, topK);
+    const tSearch = Date.now();
     if (results.length === 0) {
       return 'No documents found in this knowledge base. Please upload PDF documents first.';
     }
-    const sources = results.map(([doc]: [Document, number], idx: number) => {
-      const labels: string[] = [];
-      if (doc.metadata?.fileName) labels.push(String(doc.metadata.fileName));
-      if (doc.metadata?.documentId) labels.push(`documentId=${doc.metadata.documentId}`);
-      return {
-        label: labels.length ? labels.join(' | ') : 'unknown',
-        idx: idx + 1,
-      };
-    });
+    const docIds = results
+      .map(([doc]: [Document, number]) => (doc.metadata?.documentId ? String(doc.metadata.documentId) : null))
+      .filter(Boolean) as string[];
+    const docNameMap = await loadDocumentNames(Array.from(new Set(docIds)));
+    const { sources, context } = buildSources(results, docNameMap);
 
-    const context = results
-      .map(([doc, score]: [Document, number], idx: number) => {
-        const sourceParts: string[] = [];
-        if (doc.metadata?.fileName) sourceParts.push(String(doc.metadata.fileName));
-        if (doc.metadata?.documentId) sourceParts.push(`documentId=${doc.metadata.documentId}`);
-        const source = sourceParts.length ? sourceParts.join(' | ') : 'unknown';
-        return `### Source ${idx + 1} (score=${score.toFixed(4)}): ${source}\n\n${doc.pageContent}`;
-      })
-      .join('\n\n---\n\n');
-
-    const systemRules = [
-      promptInstructions ? `Knowledge base instructions:\n${promptInstructions}` : null,
-      `You are a RAG assistant. Answer using ONLY the provided CONTEXT and the conversation history.`,
-      `If the answer is not in the context, respond exactly: "I don't have that information in the uploaded documents." Do not guess.`,
-      `Return the answer in Markdown ONLY.`,
-      `When possible, include a short "Sources" section listing which Source numbers you used.`,
-    ]
-      .filter(Boolean)
-      .join('\n\n');
-
-    const history: BaseMessage[] = [];
-    if (Array.isArray(historyRaw)) {
-      for (const item of historyRaw.slice(-12)) {
-        if (!item?.content) continue;
-        if (item.role === 'system') history.push(new SystemMessage(String(item.content)));
-        else if (item.role === 'assistant') history.push(new AIMessage(String(item.content)));
-        else history.push(new HumanMessage(String(item.content)));
-      }
-    }
-
-    const messages: BaseMessage[] = [
-      new SystemMessage(systemRules),
-      ...history,
-      new HumanMessage(`CONTEXT:\n\n${context}\n\nUSER QUESTION:\n${question}\n\nRemember: output Markdown.`),
-    ];
+    const maxInstrChars = Number(process.env.RAG_MAX_INSTRUCTIONS_CHARS || 6000);
+    const trimmedInstructions = trimInstructions(promptInstructions, maxInstrChars);
+    const systemRules = buildSystemRules(trimmedInstructions);
+    const history: BaseMessage[] = buildHistoryMessages(historyRaw);
+    const messages: BaseMessage[] = buildMessages({ systemRules, history, context, question });
 
     const llm: any = await LLMProviderService.getLLM();
     try {
+      const tLLMStart = Date.now();
       const response = await llm.invoke(messages);
+      const tLLMEnd = Date.now();
       const answer = (response as any)?.content ?? String(response);
-      const sourcesSection =
-        sources.length > 0 ? `\n\nSources:\n${sources.map((s) => `- Source ${s.idx}: ${s.label}`).join('\n')}` : '';
+      const sourcesSection = formatSourcesSection(sources);
+      if (process.env.RAG_DEBUG_TIMINGS === '1') {
+        console.log('[ragService.query] timings', {
+          kbId,
+          topK,
+          questionChars: question?.length || 0,
+          instructionsChars: trimmedInstructions?.length || 0,
+          contextChars: context?.length || 0,
+          msTotal: Date.now() - t0,
+          msEnsureSchema: tSchema - t0,
+          msGetEmbeddingsModel: tEmbModel - tSchema,
+          msEmbedQuery: tEmbed - tEmbModel,
+          msVectorSearch: tSearch - tEmbed,
+          msLLM: tLLMEnd - tLLMStart,
+        });
+      }
       return `${answer}${sourcesSection}`;
     } catch (e) {
       // Fallback for providers/configs that don't accept structured chat messages
@@ -184,23 +95,40 @@ export class RagService {
           return `${t}: ${(m as any).content}`;
         })
         .join('\n')}\n\nCONTEXT:\n\n${context}\n\nQUESTION: ${question}\n\nReturn Markdown MD.`;
+      const tLLMStart = Date.now();
       const response = await llm.invoke(prompt);
+      const tLLMEnd = Date.now();
       const answer = (response as any)?.content ?? String(response);
-      const sourcesSection =
-        sources.length > 0 ? `\n\nSources:\n${sources.map((s) => `- Source ${s.idx}: ${s.label}`).join('\n')}` : '';
+      const sourcesSection = formatSourcesSection(sources);
+      if (process.env.RAG_DEBUG_TIMINGS === '1') {
+        console.log('[ragService.query] timings', {
+          kbId,
+          topK,
+          questionChars: question?.length || 0,
+          instructionsChars: trimmedInstructions?.length || 0,
+          contextChars: context?.length || 0,
+          msTotal: Date.now() - t0,
+          msEnsureSchema: tSchema - t0,
+          msGetEmbeddingsModel: tEmbModel - tSchema,
+          msEmbedQuery: tEmbed - tEmbModel,
+          msVectorSearch: tSearch - tEmbed,
+          msLLM: tLLMEnd - tLLMStart,
+          usedFallback: true,
+        });
+      }
       return `${answer}${sourcesSection}`;
     }
   }
 
   async deleteKnowledgeBase(kbId: string) {
-    await this.ensurePgVectorSchema();
+    await ensurePgVectorSchema(pgPool);
     const embeddings = await EmbeddingsProviderService.getEmbeddings();
     const store = new PostgresVectorStore(embeddings, pgPool, kbId);
     await store.deleteByKnowledgeBase();
   }
 
   async deleteDocument(kbId: string, documentId: string) {
-    await this.ensurePgVectorSchema();
+    await ensurePgVectorSchema(pgPool);
     const client = await pgPool.connect();
     try {
       await client.query(`DELETE FROM kb_documents WHERE kb_id = $1 AND (metadata->>'documentId') = $2`, [

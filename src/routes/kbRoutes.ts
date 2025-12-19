@@ -8,6 +8,8 @@ import {
   deleteKnowledgeBase,
   updateKnowledgeBase,
   deleteKnowledgeBaseDocument,
+  reindexKnowledgeBase,
+  downloadKnowledgeBaseDocument,
 } from '../controllers/kbController';
 import { authMiddleware } from '../middlewares/auth';
 import { roleGuard } from '../middlewares/roleGuard';
@@ -328,6 +330,36 @@ router.post('/:id/upload', roleGuard([UserRole.ADMIN]), upload.array('files', 10
 
 /**
  * @swagger
+ * /knowledge-bases/{id}/reindex:
+ *   post:
+ *     summary: Rebuild vector index for a knowledge base by re-ingesting stored PDFs (Admin only)
+ *     tags: [Knowledge Bases]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Knowledge Base ID
+ *     responses:
+ *       200:
+ *         description: Reindex completed
+ *       400:
+ *         description: No documents found for this knowledge base
+ *       404:
+ *         description: Knowledge base not found
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       500:
+ *         description: Error reindexing knowledge base
+ */
+router.post('/:id/reindex', roleGuard([UserRole.ADMIN]), reindexKnowledgeBase);
+
+/**
+ * @swagger
  * /knowledge-bases/{id}/documents/{documentId}:
  *   delete:
  *     summary: Delete a document from a knowledge base by document ID (Admin only)
@@ -383,6 +415,39 @@ router.post('/:id/upload', roleGuard([UserRole.ADMIN]), upload.array('files', 10
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.delete('/:id/documents/:documentId', roleGuard([UserRole.ADMIN]), deleteKnowledgeBaseDocument);
+
+/**
+ * @swagger
+ * /knowledge-bases/{id}/documents/{documentId}/file:
+ *   get:
+ *     summary: Download/view a knowledge base document PDF (Admin or licensed user)
+ *     tags: [Knowledge Bases]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: PDF file stream
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Not found
+ */
+router.get('/:id/documents/:documentId/file', downloadKnowledgeBaseDocument);
 
 /**
  * @swagger

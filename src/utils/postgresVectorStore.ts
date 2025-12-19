@@ -67,7 +67,7 @@ export class PostgresVectorStore extends VectorStore {
             (1 - (embedding <=> $1)) AS score
           FROM kb_documents
           WHERE kb_id = $2
-          ORDER BY embedding <-> $1
+          ORDER BY embedding <=> $1
           LIMIT $3
         `,
         [queryVectorLiteral, this.kbId, k],

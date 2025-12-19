@@ -6,6 +6,7 @@ import { Document } from '../entities/Document';
 import fs from 'fs';
 import path from 'path';
 import { ragService } from '../services/ragService';
+import { isLicenseValid } from './licenseController';
 
 // Lazy load pdf-parse only when needed to avoid memory issues at startup
 let PDFParse: any = null;
@@ -224,6 +225,7 @@ export const uploadPDF = async (req: Request, res: Response) => {
           fileName: file.originalname,
           documentId: document.id,
           pageCount: pageCount,
+          sourceUrl: `/knowledge-bases/${kbId}/documents/${document.id}/file`,
         });
         console.log('[uploadPDF] ingested into rag', { kbId, fileName: file.originalname, documentId: document.id });
 
@@ -369,5 +371,173 @@ export const deleteKnowledgeBaseDocument = async (req: Request, res: Response) =
   } catch (error) {
     console.error('Error deleting knowledge base document:', error);
     return res.status(500).json({ message: 'Error deleting document' });
+  }
+};
+
+export const reindexKnowledgeBase = async (req: Request, res: Response) => {
+  const { id: kbId } = req.params;
+
+  try {
+    const kb = await kbRepository.findOne({ where: { id: kbId } });
+    if (!kb) {
+      return res.status(404).json({ message: 'Knowledge base not found' });
+    }
+
+    const documents = await documentRepository.find({ where: { knowledgeBaseId: kbId } });
+    if (documents.length === 0) {
+      return res.status(400).json({ message: 'No documents found for this knowledge base' });
+    }
+
+    // Remove all vectors for this KB, then re-ingest from stored PDFs.
+    await ragService.deleteKnowledgeBase(kbId);
+
+    const errors: Array<{ documentId: string; fileName: string; error: string }> = [];
+    let reindexed = 0;
+
+    const getUploadsDir = (): string => {
+      const configured = process.env.UPLOADS_DIR?.trim();
+      if (configured) return path.isAbsolute(configured) ? configured : path.join(process.cwd(), configured);
+      return path.join(process.cwd(), 'uploads');
+    };
+
+    const resolveExistingPdfPath = (doc: Document): string | null => {
+      const uploadsDir = getUploadsDir();
+
+      const candidates: string[] = [];
+      if (doc.filePath) {
+        candidates.push(path.isAbsolute(doc.filePath) ? doc.filePath : path.join(process.cwd(), doc.filePath));
+      }
+      if (doc.fileName) {
+        candidates.push(path.join(uploadsDir, doc.fileName));
+      }
+
+      for (const p of candidates) {
+        if (p && fs.existsSync(p)) return p;
+      }
+
+      // Fallback: if disk filename has UUID suffix, try to find by base name prefix in uploadsDir.
+      // Example: "manual.pdf" might exist as "manual-<uuid>.pdf"
+      try {
+        const ext = path.extname(doc.fileName || '').toLowerCase() || '.pdf';
+        const base = path.basename(doc.fileName || '', ext);
+        if (!base) return null;
+        const files = fs.readdirSync(uploadsDir);
+        const matches = files
+          .filter((f) => f.toLowerCase().endsWith(ext) && f.startsWith(`${base}-`))
+          .map((f) => path.join(uploadsDir, f))
+          .filter((p) => fs.existsSync(p));
+        if (!matches.length) return null;
+        // pick most recently modified match
+        matches.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+        return matches[0];
+      } catch {
+        return null;
+      }
+    };
+
+    for (const doc of documents) {
+      try {
+        const pdfPath = resolveExistingPdfPath(doc);
+        if (!pdfPath) {
+          errors.push({
+            documentId: doc.id,
+            fileName: doc.fileName,
+            error: 'File not found on disk',
+          });
+          continue;
+        }
+
+        const dataBuffer = fs.readFileSync(pdfPath);
+        const PDFParseClass = getPdfParse();
+        const parser = new PDFParseClass({ data: dataBuffer });
+        const result = await parser.getText();
+        const textContent = result?.text || '';
+        const pageCount = result?.pages?.length || 0;
+
+        if (!textContent || textContent.trim().length === 0) {
+          errors.push({
+            documentId: doc.id,
+            fileName: doc.fileName,
+            error: 'No extractable text found in PDF (might be scanned/image-only PDF)',
+          });
+          continue;
+        }
+
+        await ragService.ingestDocument(kbId, textContent, {
+          fileName: doc.fileName,
+          documentId: doc.id,
+          pageCount,
+          sourceUrl: `/knowledge-bases/${kbId}/documents/${doc.id}/file`,
+        });
+
+        reindexed++;
+      } catch (e: any) {
+        errors.push({
+          documentId: doc.id,
+          fileName: doc.fileName,
+          error: e?.message || 'Unknown error',
+        });
+      }
+    }
+
+    return res.json({
+      message: 'Knowledge base reindex completed',
+      kbId,
+      totalDocuments: documents.length,
+      reindexedDocuments: reindexed,
+      failedDocuments: errors.length,
+      errors: errors.length ? errors : undefined,
+    });
+  } catch (error) {
+    console.error('Error reindexing knowledge base:', error);
+    return res.status(500).json({ message: 'Error reindexing knowledge base' });
+  }
+};
+
+export const downloadKnowledgeBaseDocument = async (req: Request, res: Response) => {
+  const { id: kbId, documentId } = req.params;
+  const user = req.user;
+
+  if (!user) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  try {
+    const doc = await documentRepository.findOne({
+      where: { id: documentId, knowledgeBaseId: kbId },
+    });
+
+    if (!doc) {
+      return res.status(404).json({ message: 'Document not found in this knowledge base' });
+    }
+
+    // Access control:
+    // - ADMIN can download any KB doc
+    // - CUSTOMER must have a valid license that has this KB attached
+    if (user.role !== 'ADMIN') {
+      const license = await licenseRepository.findOne({
+        where: { user: { id: user.userId } as any },
+        relations: ['knowledgeBases', 'user'],
+      });
+      if (!license || !isLicenseValid(license)) {
+        return res.status(403).json({ message: 'License is not valid' });
+      }
+      const hasKb = Array.isArray(license.knowledgeBases) && license.knowledgeBases.some((kb) => kb.id === kbId);
+      if (!hasKb) {
+        return res.status(403).json({ message: 'Knowledge base not attached to this license' });
+      }
+    }
+
+    if (!doc.filePath || !fs.existsSync(doc.filePath)) {
+      return res.status(404).json({ message: 'File not found on disk' });
+    }
+
+    // Stream file
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.fileName)}"`);
+    return fs.createReadStream(doc.filePath).pipe(res);
+  } catch (error) {
+    console.error('Error downloading knowledge base document:', error);
+    return res.status(500).json({ message: 'Error downloading document' });
   }
 };

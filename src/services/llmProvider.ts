@@ -3,41 +3,54 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { LLMProvider } from '../entities/KnowledgeBase';
-import { Configuration } from '../entities/Configuration';
-import { AppDataSource } from '../data-source';
+import { getDefaultAIConfig } from './configService';
 
-const configRepository = AppDataSource.getRepository(Configuration);
-
-const DEFAULT_CONFIG: Partial<Configuration> = {
-  llmProvider: LLMProvider.OPENAI,
-  model: 'gpt-4o',
-  temperature: null,
-  maxTokens: null,
-  topP: null,
-  topK: null,
-  frequencyPenalty: null,
-  presencePenalty: null,
-  stopSequences: null,
-};
+let cachedKey: string | null = null;
+let cachedLLM: BaseLanguageModel | null = null;
 
 export class LLMProviderService {
   static async getLLM(): Promise<BaseLanguageModel> {
-    const config = (await configRepository.findOne({ where: { key: 'default' } })) || (DEFAULT_CONFIG as Configuration);
+    const config = await getDefaultAIConfig();
     const provider = config.llmProvider || LLMProvider.OPENAI;
 
+    const cacheKey = JSON.stringify({
+      provider,
+      model: config.model,
+      temperature: config.temperature,
+      maxTokens: config.maxTokens,
+      topP: config.topP,
+      topK: config.topK,
+      frequencyPenalty: config.frequencyPenalty,
+      presencePenalty: config.presencePenalty,
+      stopSequences: config.stopSequences,
+    });
+
+    if (cachedKey === cacheKey && cachedLLM) return cachedLLM;
     switch (provider) {
       case LLMProvider.OPENAI: {
         if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set');
-        return new ChatOpenAI({
-          modelName: config?.model || 'gpt-4o',
+        const model = config.model || 'gpt-4o';
+        const isGpt5Family = /^gpt-5/i.test(model);
+
+        const openAIParams: any = {
           openAIApiKey: process.env.OPENAI_API_KEY,
-          temperature: 1.0,
-          maxTokens: config.maxTokens || 10000,
-          topP: 1.0,
-          frequencyPenalty: config.frequencyPenalty || 0.0,
-          presencePenalty: config.presencePenalty || 0.0,
-          stopSequences: config.stopSequences || undefined,
-        });
+          model,
+        };
+
+        if (!isGpt5Family && config.temperature !== null && config.temperature !== undefined) {
+          openAIParams.temperature = config.temperature;
+        }
+        if (config.maxTokens !== null && config.maxTokens !== undefined) openAIParams.maxTokens = config.maxTokens;
+        if (config.topP !== null && config.topP !== undefined) openAIParams.topP = config.topP;
+        if (config.frequencyPenalty !== null && config.frequencyPenalty !== undefined)
+          openAIParams.frequencyPenalty = config.frequencyPenalty;
+        if (config.presencePenalty !== null && config.presencePenalty !== undefined)
+          openAIParams.presencePenalty = config.presencePenalty;
+        if (config.stopSequences) openAIParams.stop = config.stopSequences;
+        const llm = new ChatOpenAI(openAIParams);
+        cachedKey = cacheKey;
+        cachedLLM = llm;
+        return llm;
       }
 
       case LLMProvider.GEMINI: {
@@ -45,13 +58,16 @@ export class LLMProviderService {
         const geminiConfig = {
           model: config.model || 'gemini-pro',
           apiKey: process.env.GEMINI_API_KEY,
-          temperature: config.temperature || 1.0,
-          maxOutputTokens: config.maxTokens || 10000,
-          topP: config.topP || 1.0,
-          topK: config.topK || 0.0,
-          stopSequences: config.stopSequences || undefined,
+          temperature: config.temperature ?? 1.0,
+          maxOutputTokens: config.maxTokens ?? 1200,
+          topP: config.topP ?? 1.0,
+          topK: config.topK ?? 0.0,
+          stopSequences: config.stopSequences ?? undefined,
         };
-        return new ChatGoogleGenerativeAI(geminiConfig);
+        const llm = new ChatGoogleGenerativeAI(geminiConfig);
+        cachedKey = cacheKey;
+        cachedLLM = llm;
+        return llm;
       }
 
       case LLMProvider.ANTHROPIC: {
@@ -59,21 +75,24 @@ export class LLMProviderService {
         const anthropicConfig = {
           model: config.model || 'claude-3-sonnet-20240229',
           anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-          temperature: config.temperature || 1.0,
-          maxTokens: config.maxTokens || 10000,
-          topP: config.topP || 1.0,
-          topK: config.topK || 0.0,
-          stopSequences: config.stopSequences || undefined,
+          temperature: config.temperature ?? 1.0,
+          maxTokens: config.maxTokens ?? 1200,
+          topP: config.topP ?? 1.0,
+          topK: config.topK ?? 0.0,
+          stopSequences: config.stopSequences ?? undefined,
         };
-        return new ChatAnthropic(anthropicConfig) as BaseLanguageModel;
+        const llm = new ChatAnthropic(anthropicConfig) as BaseLanguageModel;
+        cachedKey = cacheKey;
+        cachedLLM = llm;
+        return llm;
       }
 
       default: {
         if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set');
-        return new ChatOpenAI({
-          modelName: 'gpt-4o',
-          openAIApiKey: process.env.OPENAI_API_KEY,
-        });
+        const llm = new ChatOpenAI({ model: 'gpt-4o', openAIApiKey: process.env.OPENAI_API_KEY });
+        cachedKey = cacheKey;
+        cachedLLM = llm;
+        return llm;
       }
     }
   }

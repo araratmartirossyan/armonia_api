@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { AppDataSource } from '../data-source';
 import { Configuration } from '../entities/Configuration';
 import { LLMProvider } from '../entities/KnowledgeBase';
+import { invalidateDefaultAIConfigCache } from '../services/configService';
 
 const configRepository = AppDataSource.getRepository(Configuration);
 
@@ -53,6 +54,7 @@ export const updateAIConfig = async (req: Request, res: Response) => {
 
     Object.assign(config, parsed.data);
     await configRepository.save(config);
+    invalidateDefaultAIConfigCache();
     return res.json(config);
   } catch (error) {
     console.error(error);

@@ -23,8 +23,6 @@ export const chat = async (req: Request, res: Response) => {
       relations: ['user', 'knowledgeBases'],
     });
 
-    console.log('license', license);
-
     if (!license) {
       return res.status(404).json({ message: 'License not found' });
     }
