@@ -6,6 +6,7 @@ import {
   activateLicense,
   getLicense,
   updateLicenseValidity,
+  setLicenseKnowledgeBases,
 } from '../controllers/licenseController';
 import { authMiddleware } from '../middlewares/auth';
 import { roleGuard } from '../middlewares/roleGuard';
@@ -65,15 +66,30 @@ router.post('/', roleGuard([UserRole.ADMIN]), createLicense);
  *     tags: [Licenses]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, minimum: 1, default: 1 }
+ *       - in: query
+ *         name: pageSize
+ *         schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, updatedAt, expiresAt, isActive]
+ *       - in: query
+ *         name: sortDir
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
  *     responses:
  *       200:
- *         description: List of licenses
+ *         description: Paginated list of licenses
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/License'
+ *               $ref: '#/components/schemas/PaginatedLicensesResponse'
  *       403:
  *         description: Forbidden - Admin access required
  *         content:
@@ -188,6 +204,49 @@ router.get('/:id', roleGuard([UserRole.ADMIN]), getLicense);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.put('/:id', roleGuard([UserRole.ADMIN]), updateLicenseValidity);
+
+/**
+ * @swagger
+ * /licenses/{id}/knowledge-bases:
+ *   put:
+ *     summary: Set/replace knowledge bases assigned to a license (Admin only)
+ *     tags: [Licenses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SetLicenseKnowledgeBasesRequest'
+ *     responses:
+ *       200:
+ *         description: Updated license with assigned knowledge bases
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/License'
+ *       400:
+ *         description: Invalid input or KB not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: License not found
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       500:
+ *         description: Error updating license knowledge bases
+ */
+router.put('/:id/knowledge-bases', roleGuard([UserRole.ADMIN]), setLicenseKnowledgeBases);
 
 /**
  * @swagger

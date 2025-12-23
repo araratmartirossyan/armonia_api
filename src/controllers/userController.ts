@@ -2,23 +2,85 @@ import { Request, Response } from 'express';
 import { AppDataSource } from '../data-source';
 import { CustomerStatus, User } from '../entities/User';
 import { sanitizeUser } from '../utils/userUtils';
+import { buildMeta, parsePaginationQuery, pickSort } from '../utils/pagination';
+import { License } from '../entities/License';
+import { isLicenseValid } from './licenseController';
+import type { FindOptionsOrder } from 'typeorm';
 
 const userRepository = AppDataSource.getRepository(User);
+const licenseRepository = AppDataSource.getRepository(License);
 
 export const listUsers = async (req: Request, res: Response) => {
   try {
-    const users = await userRepository.find({
+    const parsed = parsePaginationQuery(req.query, { defaultSortDir: 'DESC' });
+    if (!parsed.ok) {
+      return res.status(400).json({ message: 'Invalid pagination params', issues: parsed.error.format() });
+    }
+
+    const { sortBy, sortDir } = pickSort(
+      parsed.sortBy,
+      parsed.sortDir,
+      ['createdAt', 'updatedAt', 'email', 'role', 'customerStatus'] as const,
+      'createdAt',
+    );
+
+    const order = { [sortBy]: sortDir } as FindOptionsOrder<User>;
+    const [users, totalItems] = await userRepository.findAndCount({
       relations: ['license'],
-      order: { createdAt: 'DESC' },
+      skip: parsed.skip,
+      take: parsed.take,
+      order,
     });
 
     // Sanitize all users (remove passwords)
     const sanitizedUsers = users.map((user) => sanitizeUser(user));
 
-    return res.json(sanitizedUsers);
+    return res.json({
+      items: sanitizedUsers,
+      meta: buildMeta({
+        page: parsed.page,
+        pageSize: parsed.pageSize,
+        totalItems,
+        sortBy,
+        sortDir,
+      }),
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Error listing users' });
+  }
+};
+
+export const getMe = async (req: Request, res: Response) => {
+  const currentUser = req.user;
+  if (!currentUser?.userId) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  try {
+    const user = await userRepository.findOne({ where: { id: currentUser.userId } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const license = await licenseRepository
+      .createQueryBuilder('license')
+      .leftJoinAndSelect('license.user', 'user')
+      .leftJoinAndSelect('license.knowledgeBases', 'knowledgeBases')
+      .where('user.id = :userId', { userId: user.id })
+      .getOne();
+
+    return res.json({
+      user: sanitizeUser(user),
+      license: license
+        ? {
+            ...license,
+            user: sanitizeUser(license.user),
+            isValid: isLicenseValid(license),
+          }
+        : null,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Error fetching current user' });
   }
 };
 

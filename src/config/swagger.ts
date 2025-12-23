@@ -21,6 +21,59 @@ const swaggerDefinition = {
       },
     },
     schemas: {
+      PaginatedMeta: {
+        type: 'object',
+        properties: {
+          page: { type: 'integer', example: 1 },
+          pageSize: { type: 'integer', example: 20 },
+          totalItems: { type: 'integer', example: 57 },
+          totalPages: { type: 'integer', example: 3 },
+          sortBy: { type: 'string', example: 'createdAt' },
+          sortDir: { type: 'string', enum: ['ASC', 'DESC'], example: 'DESC' },
+        },
+      },
+      PaginatedUsersResponse: {
+        type: 'object',
+        properties: {
+          items: { type: 'array', items: { $ref: '#/components/schemas/User' } },
+          meta: { $ref: '#/components/schemas/PaginatedMeta' },
+        },
+      },
+      PaginatedLicensesResponse: {
+        type: 'object',
+        properties: {
+          items: { type: 'array', items: { $ref: '#/components/schemas/License' } },
+          meta: { $ref: '#/components/schemas/PaginatedMeta' },
+        },
+      },
+      PaginatedKnowledgeBasesResponse: {
+        type: 'object',
+        properties: {
+          items: { type: 'array', items: { $ref: '#/components/schemas/KnowledgeBase' } },
+          meta: { $ref: '#/components/schemas/PaginatedMeta' },
+        },
+      },
+      SetLicenseKnowledgeBasesRequest: {
+        type: 'object',
+        required: ['kbIds'],
+        properties: {
+          kbIds: {
+            type: 'array',
+            items: { type: 'string', format: 'uuid' },
+            description: 'Knowledge base IDs to assign to this license (replaces existing list)',
+          },
+        },
+      },
+      MeResponse: {
+        type: 'object',
+        properties: {
+          user: { $ref: '#/components/schemas/User' },
+          license: {
+            nullable: true,
+            allOf: [{ $ref: '#/components/schemas/License' }],
+          },
+        },
+      },
       User: {
         type: 'object',
         description: 'User object (password field is excluded from responses)',
@@ -137,6 +190,10 @@ const swaggerDefinition = {
           updatedAt: {
             type: 'string',
             format: 'date-time',
+          },
+          isValid: {
+            type: 'boolean',
+            description: 'Computed validity flag (active + not expired). Present in some responses.',
           },
         },
       },

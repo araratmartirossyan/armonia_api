@@ -64,15 +64,30 @@ router.post('/', roleGuard([UserRole.ADMIN]), createKnowledgeBase);
  *     tags: [Knowledge Bases]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, minimum: 1, default: 1 }
+ *       - in: query
+ *         name: pageSize
+ *         schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, updatedAt, name]
+ *       - in: query
+ *         name: sortDir
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
  *     responses:
  *       200:
- *         description: List of knowledge bases
+ *         description: Paginated list of knowledge bases
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/KnowledgeBase'
+ *               $ref: '#/components/schemas/PaginatedKnowledgeBasesResponse'
  *       403:
  *         description: Forbidden - Admin access required
  *         content:

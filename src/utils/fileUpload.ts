@@ -2,6 +2,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
+import type { Request } from 'express';
 
 const getUploadsDir = (): string => {
   const configured = process.env.UPLOADS_DIR?.trim();
@@ -42,7 +43,7 @@ const storage = multer.diskStorage({
   },
 });
 
-const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Only accept PDF files
   if (file.mimetype === 'application/pdf') {
     cb(null, true);

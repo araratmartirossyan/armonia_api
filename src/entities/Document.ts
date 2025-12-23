@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { KnowledgeBase } from './KnowledgeBase';
+import type { JsonObject } from '../types/json';
 
 @Entity()
 export class Document {
@@ -13,7 +14,7 @@ export class Document {
   filePath!: string; // Path to stored PDF file
 
   @Column('simple-json', { nullable: true })
-  metadata!: any; // Additional metadata (file size, page count, etc.)
+  metadata!: JsonObject | null; // Additional metadata (file size, page count, etc.)
 
   @ManyToOne(() => KnowledgeBase, (kb) => kb.documents, { onDelete: 'CASCADE' })
   knowledgeBase!: KnowledgeBase;

@@ -2,10 +2,11 @@ import { VectorStore } from '@langchain/core/vectorstores';
 import { Document } from '@langchain/core/documents';
 import { Embeddings } from '@langchain/core/embeddings';
 import { Pool } from 'pg';
+import type { JsonObject } from '../types/json';
 
 type DbDocumentRow = {
   content: string;
-  metadata: any;
+  metadata: JsonObject | null;
   score: number;
 };
 

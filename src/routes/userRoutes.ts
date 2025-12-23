@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listUsers, getUser, deleteUser, updateUser } from '../controllers/userController';
+import { listUsers, getUser, deleteUser, updateUser, getMe } from '../controllers/userController';
 import { authMiddleware } from '../middlewares/auth';
 import { roleGuard } from '../middlewares/roleGuard';
 import { UserRole } from '../entities/User';
@@ -10,21 +10,66 @@ router.use(authMiddleware);
 
 /**
  * @swagger
+ * /users/me:
+ *   get:
+ *     summary: Get current authenticated user and license (validate session on launch)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user and (optional) license info
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MeResponse'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error fetching current user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.get('/me', getMe);
+
+/**
+ * @swagger
  * /users:
  *   get:
  *     summary: List all users (Admin only)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, minimum: 1, default: 1 }
+ *       - in: query
+ *         name: pageSize
+ *         schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, updatedAt, email, role, customerStatus]
+ *       - in: query
+ *         name: sortDir
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
  *     responses:
  *       200:
- *         description: List of users (passwords excluded)
+ *         description: Paginated list of users (passwords excluded)
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/User'
+ *               $ref: '#/components/schemas/PaginatedUsersResponse'
  *       403:
  *         description: Forbidden - Admin access required
  *         content:

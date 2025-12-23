@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { License } from './License';
 import { Document } from './Document';
+import type { JsonObject } from '../types/json';
 
 export enum LLMProvider {
   OPENAI = 'OPENAI',
@@ -28,7 +29,7 @@ export class KnowledgeBase {
   description!: string;
 
   @Column('simple-json', { nullable: true })
-  documents!: any; // Deprecated: Use Document entity instead
+  documents!: JsonObject | null; // Deprecated: Use Document entity instead
 
   @Column('text', { nullable: true })
   promptInstructions!: string | null; // Custom prompt instructions for this knowledge base

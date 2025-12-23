@@ -17,6 +17,18 @@ export function buildSystemRules(trimmedInstructions: string | null): string {
     .join('\n\n');
 }
 
+export function buildGlobalSystemRules(trimmedInstructions: string | null): string {
+  return [
+    trimmedInstructions ? `Global instructions:\n${trimmedInstructions}` : null,
+    `You are an assistant. The user has no knowledge base attached, so you must answer using general knowledge.`,
+    `If you are unsure, say so and ask a clarifying question. Do not invent citations.`,
+    `Return the answer in Markdown ONLY.`,
+    `Do NOT add your own "Sources" section. The system will append canonical Sources separately.`,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
 export function buildHistoryMessages(
   historyRaw?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
 ): BaseMessage[] {
@@ -45,5 +57,17 @@ export function buildMessages(params: {
     new HumanMessage(
       `CONTEXT:\n\n${params.context}\n\nUSER QUESTION:\n${params.question}\n\nRemember: output Markdown.`,
     ),
+  ];
+}
+
+export function buildGlobalMessages(params: {
+  systemRules: string;
+  history: BaseMessage[];
+  question: string;
+}): BaseMessage[] {
+  return [
+    new SystemMessage(params.systemRules),
+    ...params.history,
+    new HumanMessage(`USER QUESTION:\n${params.question}\n\nRemember: output Markdown.`),
   ];
 }

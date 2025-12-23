@@ -32,7 +32,8 @@ export class LLMProviderService {
         const model = config.model || 'gpt-4o';
         const isGpt5Family = /^gpt-5/i.test(model);
 
-        const openAIParams: any = {
+        type ChatOpenAIParams = ConstructorParameters<typeof ChatOpenAI>[0];
+        const openAIParams: ChatOpenAIParams = {
           openAIApiKey: process.env.OPENAI_API_KEY,
           model,
         };

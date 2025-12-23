@@ -11,6 +11,9 @@ router.use(authMiddleware);
  * /rag/chat:
  *   post:
  *     summary: Query the RAG system
+ *     description: >
+ *       If the license has no knowledge base attached, the system will answer using global knowledge.
+ *       When the global provider is OpenAI, the backend may use OpenAI's `web_search` tool and return web citations.
  *     tags: [RAG]
  *     security:
  *       - bearerAuth: []

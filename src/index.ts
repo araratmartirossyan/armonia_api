@@ -62,9 +62,10 @@ app.get('/', (req, res) => {
 
 AppDataSource.initialize()
   .then(() => {
-    console.log('Data Source has been initialized!');
+    // Data source initialized
     const server = app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
+      // Server started
     });
     // Allow long-running uploads/ingestion (default ~5m). Set generously; adjust via env if needed.
     server.requestTimeout = 15 * 60 * 1000; // 15 minutes

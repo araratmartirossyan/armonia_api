@@ -4,9 +4,15 @@ import { License } from '../entities/License';
 import { User } from '../entities/User';
 import { sanitizeUser } from '../utils/userUtils';
 import { randomUUID } from 'crypto';
+import { buildMeta, parsePaginationQuery, pickSort } from '../utils/pagination';
+import { KnowledgeBase } from '../entities/KnowledgeBase';
+import { z } from 'zod';
+import { In } from 'typeorm';
+import type { FindOptionsOrder } from 'typeorm';
 
 const licenseRepository = AppDataSource.getRepository(License);
 const userRepository = AppDataSource.getRepository(User);
+const kbRepository = AppDataSource.getRepository(KnowledgeBase);
 
 /**
  * Helper function to check if a license is valid (active and not expired)
@@ -80,9 +86,24 @@ export const createLicense = async (req: Request, res: Response) => {
 
 export const listLicenses = async (req: Request, res: Response) => {
   try {
-    const licenses = await licenseRepository.find({
+    const parsed = parsePaginationQuery(req.query, { defaultSortDir: 'ASC' }); // keep old default: oldest -> newest
+    if (!parsed.ok) {
+      return res.status(400).json({ message: 'Invalid pagination params', issues: parsed.error.format() });
+    }
+
+    const { sortBy, sortDir } = pickSort(
+      parsed.sortBy,
+      parsed.sortDir,
+      ['createdAt', 'updatedAt', 'expiresAt', 'isActive'] as const,
+      'createdAt',
+    );
+
+    const order = { [sortBy]: sortDir } as FindOptionsOrder<License>;
+    const [licenses, totalItems] = await licenseRepository.findAndCount({
       relations: ['user', 'knowledgeBases'],
-      order: { createdAt: 'ASC' }, // oldest -> newest
+      skip: parsed.skip,
+      take: parsed.take,
+      order,
     });
     // Add validation status and sanitize user data
     const licensesWithStatus = licenses.map((license) => ({
@@ -90,10 +111,69 @@ export const listLicenses = async (req: Request, res: Response) => {
       user: sanitizeUser(license.user),
       isValid: isLicenseValid(license),
     }));
-    return res.json(licensesWithStatus);
+
+    return res.json({
+      items: licensesWithStatus,
+      meta: buildMeta({
+        page: parsed.page,
+        pageSize: parsed.pageSize,
+        totalItems,
+        sortBy,
+        sortDir,
+      }),
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Error listing licenses' });
+  }
+};
+
+const setLicenseKnowledgeBasesSchema = z.object({
+  kbIds: z.array(z.string().uuid()).default([]),
+});
+
+export const setLicenseKnowledgeBases = async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const parsed = setLicenseKnowledgeBasesSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Invalid request body', issues: parsed.error.format() });
+  }
+
+  try {
+    const license = await licenseRepository.findOne({
+      where: { id },
+      relations: ['user', 'knowledgeBases'],
+    });
+    if (!license) return res.status(404).json({ message: 'License not found' });
+
+    const kbIds = Array.from(new Set(parsed.data.kbIds));
+    const kbs = kbIds.length ? await kbRepository.findBy({ id: In(kbIds) }) : [];
+
+    if (kbs.length !== kbIds.length) {
+      const found = new Set(kbs.map((k) => k.id));
+      const missing = kbIds.filter((x) => !found.has(x));
+      return res.status(400).json({ message: 'Some knowledge bases not found', missingKbIds: missing });
+    }
+
+    license.knowledgeBases = kbs;
+    await licenseRepository.save(license);
+
+    const updated = await licenseRepository.findOne({
+      where: { id: license.id },
+      relations: ['user', 'knowledgeBases'],
+    });
+
+    if (!updated) return res.status(500).json({ message: 'Error retrieving updated license' });
+
+    return res.json({
+      ...updated,
+      user: sanitizeUser(updated.user),
+      isValid: isLicenseValid(updated),
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Error updating license knowledge bases' });
   }
 };
 
