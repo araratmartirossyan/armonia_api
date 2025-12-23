@@ -89,6 +89,6 @@ router.post('/chat', chat);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/upload', uploadDocument); // In real app, add multer middleware here
+router.post('/upload', uploadDocument);
 
 export default router;

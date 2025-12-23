@@ -61,11 +61,3 @@ export const upload = multer({
   },
 });
 
-// Export single file upload for backward compatibility (if needed)
-export const uploadSingle = multer({
-  storage,
-  fileFilter,
-  limits: {
-    fileSize: 10 * 1024 * 1024,
-  },
-});
