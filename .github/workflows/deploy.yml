@@ -1,0 +1,62 @@
+name: Deploy to DigitalOcean App Platform
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # - name: Run linter
+      # run: yarn lint
+
+      # - name: Run TypeScript compiler
+      #   run: npm run tsc --noEmit
+
+      - name: Run TypeScript compiler
+        run: yarn tsc
+
+      - name: Build application
+        run: yarn build
+
+  deploy:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to DigitalOcean App Platform
+        uses: digitalocean/app_action/deploy@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          print_build_logs: true
+          app_name: armonia-api
+          print_deploy_logs: true
+        env:
+          NODE_ENV: production
