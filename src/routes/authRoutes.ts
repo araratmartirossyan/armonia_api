@@ -1,7 +1,7 @@
-import { Router } from 'express';
-import { register, login } from '../controllers/authController';
+import { Router } from 'express'
+import { register, login } from '../controllers/authController'
 
-const router = Router();
+const router = Router()
 
 /**
  * @swagger
@@ -35,7 +35,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/register', register);
+router.post('/register', register)
 
 /**
  * @swagger
@@ -69,6 +69,6 @@ router.post('/register', register);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/login', login);
+router.post('/login', login)
 
-export default router;
+export default router

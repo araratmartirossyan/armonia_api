@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from 'express'
 import {
   createLicense,
   listLicenses,
@@ -7,14 +7,14 @@ import {
   getLicense,
   updateLicenseValidity,
   setLicenseKnowledgeBases,
-} from '../controllers/licenseController';
-import { authMiddleware } from '../middlewares/auth';
-import { roleGuard } from '../middlewares/roleGuard';
-import { UserRole } from '../entities/User';
+} from '../controllers/licenseController'
+import { authMiddleware } from '../middlewares/auth'
+import { roleGuard } from '../middlewares/roleGuard'
+import { UserRole } from '../entities/User'
 
-const router = Router();
+const router = Router()
 
-router.use(authMiddleware);
+router.use(authMiddleware)
 
 /**
  * @swagger
@@ -56,7 +56,7 @@ router.use(authMiddleware);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/', roleGuard([UserRole.ADMIN]), createLicense);
+router.post('/', roleGuard([UserRole.ADMIN]), createLicense)
 
 /**
  * @swagger
@@ -103,7 +103,7 @@ router.post('/', roleGuard([UserRole.ADMIN]), createLicense);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/', roleGuard([UserRole.ADMIN]), listLicenses);
+router.get('/', roleGuard([UserRole.ADMIN]), listLicenses)
 
 /**
  * @swagger
@@ -147,7 +147,7 @@ router.get('/', roleGuard([UserRole.ADMIN]), listLicenses);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/:id', roleGuard([UserRole.ADMIN]), getLicense);
+router.get('/:id', roleGuard([UserRole.ADMIN]), getLicense)
 
 /**
  * @swagger
@@ -203,7 +203,7 @@ router.get('/:id', roleGuard([UserRole.ADMIN]), getLicense);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.put('/:id', roleGuard([UserRole.ADMIN]), updateLicenseValidity);
+router.put('/:id', roleGuard([UserRole.ADMIN]), updateLicenseValidity)
 
 /**
  * @swagger
@@ -246,7 +246,7 @@ router.put('/:id', roleGuard([UserRole.ADMIN]), updateLicenseValidity);
  *       500:
  *         description: Error updating license knowledge bases
  */
-router.put('/:id/knowledge-bases', roleGuard([UserRole.ADMIN]), setLicenseKnowledgeBases);
+router.put('/:id/knowledge-bases', roleGuard([UserRole.ADMIN]), setLicenseKnowledgeBases)
 
 /**
  * @swagger
@@ -296,7 +296,7 @@ router.put('/:id/knowledge-bases', roleGuard([UserRole.ADMIN]), setLicenseKnowle
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.patch('/:id/deactivate', roleGuard([UserRole.ADMIN]), deactivateLicense);
+router.patch('/:id/deactivate', roleGuard([UserRole.ADMIN]), deactivateLicense)
 
 /**
  * @swagger
@@ -346,6 +346,6 @@ router.patch('/:id/deactivate', roleGuard([UserRole.ADMIN]), deactivateLicense);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.patch('/:id/activate', roleGuard([UserRole.ADMIN]), activateLicense);
+router.patch('/:id/activate', roleGuard([UserRole.ADMIN]), activateLicense)
 
-export default router;
+export default router

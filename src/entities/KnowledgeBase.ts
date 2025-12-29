@@ -6,10 +6,10 @@ import {
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
-} from 'typeorm';
-import { License } from './License';
-import { Document } from './Document';
-import type { JsonObject } from '../types/json';
+} from 'typeorm'
+import { License } from './License'
+import { Document } from './Document'
+import type { JsonObject } from '../types/json'
 
 export enum LLMProvider {
   OPENAI = 'OPENAI',
@@ -20,29 +20,29 @@ export enum LLMProvider {
 @Entity()
 export class KnowledgeBase {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id!: string
 
   @Column()
-  name!: string;
+  name!: string
 
   @Column({ nullable: true })
-  description!: string;
+  description!: string
 
   @Column('simple-json', { nullable: true })
-  documents!: JsonObject | null; // Deprecated: Use Document entity instead
+  documents!: JsonObject | null // Deprecated: Use Document entity instead
 
   @Column('text', { nullable: true })
-  promptInstructions!: string | null; // Custom prompt instructions for this knowledge base
+  promptInstructions!: string | null // Custom prompt instructions for this knowledge base
 
-  @OneToMany(() => Document, (document) => document.knowledgeBase)
-  pdfDocuments!: Document[];
+  @OneToMany(() => Document, document => document.knowledgeBase)
+  pdfDocuments!: Document[]
 
-  @ManyToMany(() => License, (license) => license.knowledgeBases)
-  licenses!: License[];
+  @ManyToMany(() => License, license => license.knowledgeBases)
+  licenses!: License[]
 
   @CreateDateColumn()
-  createdAt!: Date;
+  createdAt!: Date
 
   @UpdateDateColumn()
-  updatedAt!: Date;
+  updatedAt!: Date
 }

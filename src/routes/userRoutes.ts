@@ -1,12 +1,12 @@
-import { Router } from 'express';
-import { listUsers, getUser, deleteUser, updateUser, getMe } from '../controllers/userController';
-import { authMiddleware } from '../middlewares/auth';
-import { roleGuard } from '../middlewares/roleGuard';
-import { UserRole } from '../entities/User';
+import { Router } from 'express'
+import { listUsers, getUser, deleteUser, updateUser, getMe } from '../controllers/userController'
+import { authMiddleware } from '../middlewares/auth'
+import { roleGuard } from '../middlewares/roleGuard'
+import { UserRole } from '../entities/User'
 
-const router = Router();
+const router = Router()
 
-router.use(authMiddleware);
+router.use(authMiddleware)
 
 /**
  * @swagger
@@ -36,7 +36,7 @@ router.use(authMiddleware);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/me', getMe);
+router.get('/me', getMe)
 
 /**
  * @swagger
@@ -83,7 +83,7 @@ router.get('/me', getMe);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/', roleGuard([UserRole.ADMIN]), listUsers);
+router.get('/', roleGuard([UserRole.ADMIN]), listUsers)
 
 /**
  * @swagger
@@ -127,7 +127,7 @@ router.get('/', roleGuard([UserRole.ADMIN]), listUsers);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/:id', roleGuard([UserRole.ADMIN]), getUser);
+router.get('/:id', roleGuard([UserRole.ADMIN]), getUser)
 
 /**
  * @swagger
@@ -177,7 +177,7 @@ router.get('/:id', roleGuard([UserRole.ADMIN]), getUser);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.put('/:id', roleGuard([UserRole.ADMIN]), updateUser);
+router.put('/:id', roleGuard([UserRole.ADMIN]), updateUser)
 
 /**
  * @swagger
@@ -231,6 +231,6 @@ router.put('/:id', roleGuard([UserRole.ADMIN]), updateUser);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.delete('/:id', roleGuard([UserRole.ADMIN]), deleteUser);
+router.delete('/:id', roleGuard([UserRole.ADMIN]), deleteUser)
 
-export default router;
+export default router

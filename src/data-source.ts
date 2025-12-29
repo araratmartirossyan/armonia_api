@@ -1,12 +1,12 @@
-import 'reflect-metadata';
-import { DataSource } from 'typeorm';
-import { User } from './entities/User';
-import { License } from './entities/License';
-import { KnowledgeBase } from './entities/KnowledgeBase';
-import { Configuration } from './entities/Configuration';
-import { Document } from './entities/Document';
-import dotenv from 'dotenv';
-dotenv.config();
+import 'reflect-metadata'
+import { DataSource } from 'typeorm'
+import { User } from './entities/User'
+import { License } from './entities/License'
+import { KnowledgeBase } from './entities/KnowledgeBase'
+import { Configuration } from './entities/Configuration'
+import { Document } from './entities/Document'
+import dotenv from 'dotenv'
+dotenv.config()
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -23,4 +23,4 @@ export const AppDataSource = new DataSource({
     rejectUnauthorized: false,
   },
   subscribers: [],
-});
+})

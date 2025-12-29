@@ -8,35 +8,35 @@ import {
   JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
-} from 'typeorm';
-import { User } from './User';
-import { KnowledgeBase } from './KnowledgeBase';
+} from 'typeorm'
+import { User } from './User'
+import { KnowledgeBase } from './KnowledgeBase'
 
 @Entity()
 export class License {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id!: string
 
   @Column({ unique: true })
-  key!: string;
+  key!: string
 
   @Column({ default: true })
-  isActive!: boolean;
+  isActive!: boolean
 
   @Column({ type: 'timestamp', nullable: true })
-  expiresAt!: Date | null;
+  expiresAt!: Date | null
 
-  @OneToOne(() => User, (user) => user.license, { onDelete: 'CASCADE' })
+  @OneToOne(() => User, user => user.license, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
-  user!: User;
+  user!: User
 
-  @ManyToMany(() => KnowledgeBase, (kb) => kb.licenses)
+  @ManyToMany(() => KnowledgeBase, kb => kb.licenses)
   @JoinTable()
-  knowledgeBases!: KnowledgeBase[];
+  knowledgeBases!: KnowledgeBase[]
 
   @CreateDateColumn()
-  createdAt!: Date;
+  createdAt!: Date
 
   @UpdateDateColumn()
-  updatedAt!: Date;
+  updatedAt!: Date
 }

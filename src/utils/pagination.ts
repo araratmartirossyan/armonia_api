@@ -1,18 +1,18 @@
-import { z } from 'zod';
+import { z } from 'zod'
 
-export type SortDir = 'ASC' | 'DESC';
+export type SortDir = 'ASC' | 'DESC'
 
 export function parsePaginationQuery(
   input: unknown,
   opts?: {
-    defaultPageSize?: number;
-    maxPageSize?: number;
-    defaultSortDir?: SortDir;
+    defaultPageSize?: number
+    maxPageSize?: number
+    defaultSortDir?: SortDir
   },
 ) {
-  const defaultPageSize = opts?.defaultPageSize ?? 20;
-  const maxPageSize = opts?.maxPageSize ?? 200;
-  const defaultSortDir = opts?.defaultSortDir ?? 'DESC';
+  const defaultPageSize = opts?.defaultPageSize ?? 20
+  const maxPageSize = opts?.maxPageSize ?? 200
+  const defaultSortDir = opts?.defaultSortDir ?? 'DESC'
 
   const paginationQuerySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
@@ -21,19 +21,19 @@ export function parsePaginationQuery(
     sortDir: z
       .string()
       .trim()
-      .transform((v) => v.toUpperCase())
+      .transform(v => v.toUpperCase())
       .pipe(z.enum(['ASC', 'DESC']))
       .default(defaultSortDir),
-  });
+  })
 
-  const parsed = paginationQuerySchema.safeParse(input);
+  const parsed = paginationQuerySchema.safeParse(input)
   if (!parsed.success) {
     return {
       ok: false as const,
       error: parsed.error,
-    };
+    }
   }
-  const { page, pageSize, sortBy, sortDir } = parsed.data;
+  const { page, pageSize, sortBy, sortDir } = parsed.data
   return {
     ok: true as const,
     page,
@@ -42,7 +42,7 @@ export function parsePaginationQuery(
     sortDir: sortDir as SortDir,
     skip: (page - 1) * pageSize,
     take: pageSize,
-  };
+  }
 }
 
 export function pickSort<T extends string>(
@@ -51,18 +51,20 @@ export function pickSort<T extends string>(
   allowedSort: readonly T[],
   defaultSortBy: T,
 ): { sortBy: T; sortDir: SortDir } {
-  const sortBy = (sortByRaw && (allowedSort as readonly string[]).includes(sortByRaw) ? sortByRaw : defaultSortBy) as T;
-  return { sortBy, sortDir };
+  const sortBy = (
+    sortByRaw && (allowedSort as readonly string[]).includes(sortByRaw) ? sortByRaw : defaultSortBy
+  ) as T
+  return { sortBy, sortDir }
 }
 
 export function buildMeta(params: {
-  page: number;
-  pageSize: number;
-  totalItems: number;
-  sortBy: string;
-  sortDir: SortDir;
+  page: number
+  pageSize: number
+  totalItems: number
+  sortBy: string
+  sortDir: SortDir
 }) {
-  const totalPages = Math.max(1, Math.ceil(params.totalItems / params.pageSize));
+  const totalPages = Math.max(1, Math.ceil(params.totalItems / params.pageSize))
   return {
     page: params.page,
     pageSize: params.pageSize,
@@ -70,7 +72,5 @@ export function buildMeta(params: {
     totalPages,
     sortBy: params.sortBy,
     sortDir: params.sortDir,
-  };
+  }
 }
-
-

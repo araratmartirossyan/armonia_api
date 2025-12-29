@@ -1,11 +1,12 @@
-import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerJsdoc from 'swagger-jsdoc'
 
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
     title: 'Beauty License Manager API',
     version: '1.0.0',
-    description: 'API documentation for the Beauty License Manager - A RAG backend with license management',
+    description:
+      'API documentation for the Beauty License Manager - A RAG backend with license management',
     contact: {
       name: 'API Support',
     },
@@ -193,7 +194,8 @@ const swaggerDefinition = {
           },
           isValid: {
             type: 'boolean',
-            description: 'Computed validity flag (active + not expired). Present in some responses.',
+            description:
+              'Computed validity flag (active + not expired). Present in some responses.',
           },
         },
       },
@@ -447,7 +449,8 @@ const swaggerDefinition = {
           validityPeriodDays: {
             type: 'number',
             minimum: 1,
-            description: 'Number of days until license expires (optional, if not provided license never expires)',
+            description:
+              'Number of days until license expires (optional, if not provided license never expires)',
           },
         },
       },
@@ -722,11 +725,11 @@ const swaggerDefinition = {
       },
     },
   },
-};
+}
 
 const options = {
   definition: swaggerDefinition,
   apis: ['./src/routes/*.ts', './src/controllers/*.ts'],
-};
+}
 
-export const swaggerSpec = swaggerJsdoc(options);
+export const swaggerSpec = swaggerJsdoc(options)

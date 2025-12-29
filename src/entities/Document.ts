@@ -1,30 +1,37 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-import { KnowledgeBase } from './KnowledgeBase';
-import type { JsonObject } from '../types/json';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm'
+import { KnowledgeBase } from './KnowledgeBase'
+import type { JsonObject } from '../types/json'
 
 @Entity()
 export class Document {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id!: string
 
   @Column()
-  fileName!: string;
+  fileName!: string
 
   @Column()
-  filePath!: string; // Path to stored PDF file
+  filePath!: string // Path to stored PDF file
 
   @Column('simple-json', { nullable: true })
-  metadata!: JsonObject | null; // Additional metadata (file size, page count, etc.)
+  metadata!: JsonObject | null // Additional metadata (file size, page count, etc.)
 
-  @ManyToOne(() => KnowledgeBase, (kb) => kb.documents, { onDelete: 'CASCADE' })
-  knowledgeBase!: KnowledgeBase;
+  @ManyToOne(() => KnowledgeBase, kb => kb.documents, { onDelete: 'CASCADE' })
+  knowledgeBase!: KnowledgeBase
 
   @Column()
-  knowledgeBaseId!: string;
+  knowledgeBaseId!: string
 
   @CreateDateColumn()
-  createdAt!: Date;
+  createdAt!: Date
 
   @UpdateDateColumn()
-  updatedAt!: Date;
+  updatedAt!: Date
 }

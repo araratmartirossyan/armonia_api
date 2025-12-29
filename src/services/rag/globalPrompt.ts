@@ -7,4 +7,4 @@ You can use general knowledge and (when available) web search results.
 If a question is ambiguous, ask a clarifying question.
 If you are not confident, say so.
 Prefer official manufacturer docs and trustworthy sources.
-`.trim();
+`.trim()

@@ -1,12 +1,12 @@
-import { Router } from 'express';
-import { getAIConfig, updateAIConfig } from '../controllers/configController';
-import { authMiddleware } from '../middlewares/auth';
-import { roleGuard } from '../middlewares/roleGuard';
-import { UserRole } from '../entities/User';
+import { Router } from 'express'
+import { getAIConfig, updateAIConfig } from '../controllers/configController'
+import { authMiddleware } from '../middlewares/auth'
+import { roleGuard } from '../middlewares/roleGuard'
+import { UserRole } from '../entities/User'
 
-const router = Router();
+const router = Router()
 
-router.use(authMiddleware);
+router.use(authMiddleware)
 
 /**
  * @swagger
@@ -36,7 +36,7 @@ router.use(authMiddleware);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/ai', roleGuard([UserRole.ADMIN]), getAIConfig);
+router.get('/ai', roleGuard([UserRole.ADMIN]), getAIConfig)
 
 /**
  * @swagger
@@ -72,6 +72,6 @@ router.get('/ai', roleGuard([UserRole.ADMIN]), getAIConfig);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.put('/ai', roleGuard([UserRole.ADMIN]), updateAIConfig);
+router.put('/ai', roleGuard([UserRole.ADMIN]), updateAIConfig)
 
-export default router;
+export default router

@@ -1,10 +1,10 @@
-import { Router } from 'express';
-import { chat, uploadDocument } from '../controllers/ragController';
-import { authMiddleware } from '../middlewares/auth';
+import { Router } from 'express'
+import { chat, uploadDocument } from '../controllers/ragController'
+import { authMiddleware } from '../middlewares/auth'
 
-const router = Router();
+const router = Router()
 
-router.use(authMiddleware);
+router.use(authMiddleware)
 
 /**
  * @swagger
@@ -56,7 +56,7 @@ router.use(authMiddleware);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/chat', chat);
+router.post('/chat', chat)
 
 /**
  * @swagger
@@ -90,6 +90,6 @@ router.post('/chat', chat);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/upload', uploadDocument);
+router.post('/upload', uploadDocument)
 
-export default router;
+export default router

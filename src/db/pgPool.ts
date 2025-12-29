@@ -1,6 +1,6 @@
-import { Pool } from 'pg';
+import { Pool } from 'pg'
 
-const useConnectionString = !!process.env.DATABASE_URL;
+const useConnectionString = !!process.env.DATABASE_URL
 
 export const pgPool = new Pool(
   useConnectionString
@@ -20,4 +20,4 @@ export const pgPool = new Pool(
           rejectUnauthorized: false,
         },
       },
-);
+)

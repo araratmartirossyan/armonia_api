@@ -1,5 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-import { License } from './License';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm'
+import { License } from './License'
 
 export enum UserRole {
   ADMIN = 'ADMIN',
@@ -20,52 +27,52 @@ export enum CustomerStatus {
 @Entity()
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id!: string
 
   @Column({ unique: true })
-  email!: string;
+  email!: string
 
   @Column()
-  password!: string;
+  password!: string
 
   @Column({
     type: 'simple-enum',
     enum: UserRole,
     default: UserRole.CUSTOMER,
   })
-  role!: UserRole;
+  role!: UserRole
 
   @Column({ type: 'varchar', nullable: true })
-  legalName!: string | null;
+  legalName!: string | null
 
   @Column({ type: 'varchar', nullable: true })
-  centerName!: string | null;
+  centerName!: string | null
 
   @Column({
     type: 'simple-enum',
     enum: CustomerStatus,
     default: CustomerStatus.ACTIVATION_REQUEST,
   })
-  customerStatus!: CustomerStatus;
+  customerStatus!: CustomerStatus
 
   @Column({ type: 'varchar', nullable: true })
-  contactPerson!: string | null;
+  contactPerson!: string | null
 
   @Column({ type: 'varchar', nullable: true })
-  contactNumber!: string | null;
+  contactNumber!: string | null
 
   @Column({ type: 'varchar', nullable: true })
-  address!: string | null;
+  address!: string | null
 
   @Column({ type: 'varchar', nullable: true })
-  assignedAgentFullName!: string | null;
+  assignedAgentFullName!: string | null
 
-  @OneToOne(() => License, (license) => license.user)
-  license!: License | null;
+  @OneToOne(() => License, license => license.user)
+  license!: License | null
 
   @CreateDateColumn()
-  createdAt!: Date;
+  createdAt!: Date
 
   @UpdateDateColumn()
-  updatedAt!: Date;
+  updatedAt!: Date
 }

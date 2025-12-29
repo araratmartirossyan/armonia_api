@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from 'express'
 import {
   createKnowledgeBase,
   listKnowledgeBases,
@@ -10,15 +10,15 @@ import {
   deleteKnowledgeBaseDocument,
   reindexKnowledgeBase,
   downloadKnowledgeBaseDocument,
-} from '../controllers/kbController';
-import { authMiddleware } from '../middlewares/auth';
-import { roleGuard } from '../middlewares/roleGuard';
-import { UserRole } from '../entities/User';
-import { upload } from '../utils/fileUpload';
+} from '../controllers/kbController'
+import { authMiddleware } from '../middlewares/auth'
+import { roleGuard } from '../middlewares/roleGuard'
+import { UserRole } from '../entities/User'
+import { upload } from '../utils/fileUpload'
 
-const router = Router();
+const router = Router()
 
-router.use(authMiddleware);
+router.use(authMiddleware)
 
 /**
  * @swagger
@@ -54,7 +54,7 @@ router.use(authMiddleware);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/', roleGuard([UserRole.ADMIN]), createKnowledgeBase);
+router.post('/', roleGuard([UserRole.ADMIN]), createKnowledgeBase)
 
 /**
  * @swagger
@@ -101,7 +101,7 @@ router.post('/', roleGuard([UserRole.ADMIN]), createKnowledgeBase);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/', roleGuard([UserRole.ADMIN]), listKnowledgeBases);
+router.get('/', roleGuard([UserRole.ADMIN]), listKnowledgeBases)
 
 /**
  * @swagger
@@ -147,7 +147,7 @@ router.get('/', roleGuard([UserRole.ADMIN]), listKnowledgeBases);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/attach', roleGuard([UserRole.ADMIN]), attachToLicense);
+router.post('/attach', roleGuard([UserRole.ADMIN]), attachToLicense)
 
 /**
  * @swagger
@@ -185,7 +185,7 @@ router.post('/attach', roleGuard([UserRole.ADMIN]), attachToLicense);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/:id', roleGuard([UserRole.ADMIN]), getKnowledgeBase);
+router.get('/:id', roleGuard([UserRole.ADMIN]), getKnowledgeBase)
 
 /**
  * @swagger
@@ -247,7 +247,7 @@ router.get('/:id', roleGuard([UserRole.ADMIN]), getKnowledgeBase);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.put('/:id', roleGuard([UserRole.ADMIN]), updateKnowledgeBase);
+router.put('/:id', roleGuard([UserRole.ADMIN]), updateKnowledgeBase)
 
 /**
  * @swagger
@@ -341,7 +341,7 @@ router.put('/:id', roleGuard([UserRole.ADMIN]), updateKnowledgeBase);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/:id/upload', roleGuard([UserRole.ADMIN]), upload.array('files', 10), uploadPDF);
+router.post('/:id/upload', roleGuard([UserRole.ADMIN]), upload.array('files', 10), uploadPDF)
 
 /**
  * @swagger
@@ -371,7 +371,7 @@ router.post('/:id/upload', roleGuard([UserRole.ADMIN]), upload.array('files', 10
  *       500:
  *         description: Error reindexing knowledge base
  */
-router.post('/:id/reindex', roleGuard([UserRole.ADMIN]), reindexKnowledgeBase);
+router.post('/:id/reindex', roleGuard([UserRole.ADMIN]), reindexKnowledgeBase)
 
 /**
  * @swagger
@@ -429,7 +429,11 @@ router.post('/:id/reindex', roleGuard([UserRole.ADMIN]), reindexKnowledgeBase);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.delete('/:id/documents/:documentId', roleGuard([UserRole.ADMIN]), deleteKnowledgeBaseDocument);
+router.delete(
+  '/:id/documents/:documentId',
+  roleGuard([UserRole.ADMIN]),
+  deleteKnowledgeBaseDocument,
+)
 
 /**
  * @swagger
@@ -462,7 +466,7 @@ router.delete('/:id/documents/:documentId', roleGuard([UserRole.ADMIN]), deleteK
  *       404:
  *         description: Not found
  */
-router.get('/:id/documents/:documentId/file', downloadKnowledgeBaseDocument);
+router.get('/:id/documents/:documentId/file', downloadKnowledgeBaseDocument)
 
 /**
  * @swagger
@@ -513,6 +517,6 @@ router.get('/:id/documents/:documentId/file', downloadKnowledgeBaseDocument);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.delete('/:id', roleGuard([UserRole.ADMIN]), deleteKnowledgeBase);
+router.delete('/:id', roleGuard([UserRole.ADMIN]), deleteKnowledgeBase)
 
-export default router;
+export default router
