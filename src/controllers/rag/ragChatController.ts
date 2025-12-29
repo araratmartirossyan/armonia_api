@@ -38,9 +38,23 @@ export const chat = async (req: Request, res: Response) => {
       if (!license.knowledgeBases.some((kb) => kb.id === kbId)) {
         return res.status(403).json({ message: 'Knowledge base not attached to this license' });
       }
-    } else if (Array.isArray(license.knowledgeBases) && license.knowledgeBases.length > 0) {
-      // Use first knowledge base if none specified (backward-compatible default).
-      knowledgeBase = await kbRepository.findOne({ where: { id: license.knowledgeBases[0].id } });
+    }
+
+    // If no specific kbId was requested, support multi-KB retrieval across ALL attached KBs.
+    if (!kbId && Array.isArray(license.knowledgeBases) && license.knowledgeBases.length > 0) {
+      const attachedKbIds = license.knowledgeBases.map((k) => k.id);
+      const mergedInstructions = license.knowledgeBases
+        .map((kb) => kb.promptInstructions)
+        .filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+        .join('\n\n---\n\n');
+
+      const answer = await ragService.queryAcrossKnowledgeBases(
+        attachedKbIds,
+        question,
+        mergedInstructions || null,
+        Array.isArray(history) ? history : undefined,
+      );
+      return res.json({ answer });
     }
 
     if (!knowledgeBase) {

@@ -13,6 +13,7 @@ router.use(authMiddleware);
  *     summary: Query the RAG system
  *     description: >
  *       If the license has no knowledge base attached, the system will answer using global knowledge.
+ *       If multiple knowledge bases are attached and `kbId` is not provided, the backend will auto-select the most relevant KB for the question.
  *       When the global provider is OpenAI, the backend may use OpenAI's `web_search` tool and return web citations.
  *     tags: [RAG]
  *     security:
