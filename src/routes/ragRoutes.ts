@@ -1,4 +1,5 @@
 import { Router } from 'express'
+
 import { chat, uploadDocument } from '../controllers/ragController'
 import { authMiddleware } from '../middlewares/auth'
 

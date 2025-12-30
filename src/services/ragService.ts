@@ -1,12 +1,15 @@
+import { BaseLanguageModel } from '@langchain/core/language_models/base'
 import { Document } from '@langchain/core/documents'
 import { BaseMessage } from '@langchain/core/messages'
-import { BaseLanguageModel } from '@langchain/core/language_models/base'
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
-import { LLMProviderService } from './llmProvider'
-import { EmbeddingsProviderService } from './embeddingsProvider'
-import { PostgresVectorStore } from '../utils/postgresVectorStore'
+
+import { LLMProvider } from '../entities/KnowledgeBase'
 import { pgPool } from '../db/pgPool'
-import { ensurePgVectorSchema } from './rag/ragSchema'
+import { PostgresVectorStore } from '../utils/postgresVectorStore'
+import { EmbeddingsProviderService } from './embeddingsProvider'
+import { LLMProviderService } from './llmProvider'
+import { getDefaultAIConfig } from './configService'
+import { openAIWebSearchAnswer } from './openaiWebSearch'
 import {
   buildGlobalMessages,
   buildGlobalSystemRules,
@@ -17,9 +20,7 @@ import {
   formatMessagesForPrompt,
   trimInstructions,
 } from './rag/ragPrompt'
-import { getDefaultAIConfig } from './configService'
-import { LLMProvider } from '../entities/KnowledgeBase'
-import { openAIWebSearchAnswer } from './openaiWebSearch'
+import { ensurePgVectorSchema } from './rag/ragSchema'
 import { GLOBAL_FALLBACK_PROMPT_INSTRUCTIONS } from './rag/globalPrompt'
 import type { ChatHistoryItem, IngestMetadata, KbScore } from '../types/rag'
 

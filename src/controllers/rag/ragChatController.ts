@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+
 import { AppDataSource } from '../../data-source'
 import { KnowledgeBase } from '../../entities/KnowledgeBase'
 import { License } from '../../entities/License'

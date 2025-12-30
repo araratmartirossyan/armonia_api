@@ -1,7 +1,8 @@
+import bcrypt from 'bcryptjs'
 import { Request, Response } from 'express'
+
 import { AppDataSource } from '../data-source'
 import { CustomerStatus, User, UserRole } from '../entities/User'
-import bcrypt from 'bcryptjs'
 import { signToken } from '../utils/jwt'
 import { sanitizeUser } from '../utils/userUtils'
 

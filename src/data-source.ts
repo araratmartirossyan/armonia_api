@@ -1,11 +1,13 @@
 import 'reflect-metadata'
+import dotenv from 'dotenv'
 import { DataSource } from 'typeorm'
-import { User } from './entities/User'
-import { License } from './entities/License'
-import { KnowledgeBase } from './entities/KnowledgeBase'
+
 import { Configuration } from './entities/Configuration'
 import { Document } from './entities/Document'
-import dotenv from 'dotenv'
+import { KnowledgeBase } from './entities/KnowledgeBase'
+import { License } from './entities/License'
+import { User } from './entities/User'
+
 dotenv.config()
 
 export const AppDataSource = new DataSource({

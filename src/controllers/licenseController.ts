@@ -1,14 +1,15 @@
-import { Request, Response } from 'express'
-import { AppDataSource } from '../data-source'
-import { License } from '../entities/License'
-import { User } from '../entities/User'
-import { sanitizeUser } from '../utils/userUtils'
 import { randomUUID } from 'crypto'
-import { buildMeta, parsePaginationQuery, pickSort } from '../utils/pagination'
-import { KnowledgeBase } from '../entities/KnowledgeBase'
-import { z } from 'zod'
+import { Request, Response } from 'express'
 import { In } from 'typeorm'
 import type { FindOptionsOrder } from 'typeorm'
+import { z } from 'zod'
+
+import { AppDataSource } from '../data-source'
+import { KnowledgeBase } from '../entities/KnowledgeBase'
+import { License } from '../entities/License'
+import { User } from '../entities/User'
+import { buildMeta, parsePaginationQuery, pickSort } from '../utils/pagination'
+import { sanitizeUser } from '../utils/userUtils'
 
 const licenseRepository = AppDataSource.getRepository(License)
 const userRepository = AppDataSource.getRepository(User)

@@ -1,11 +1,18 @@
 import 'reflect-metadata'
-import express from 'express'
 import cors from 'cors'
-import helmet from 'helmet'
 import dotenv from 'dotenv'
+import express from 'express'
+import helmet from 'helmet'
 import swaggerUi from 'swagger-ui-express'
+
 import { AppDataSource } from './data-source'
 import { swaggerSpec } from './config/swagger'
+import authRoutes from './routes/authRoutes'
+import configRoutes from './routes/configRoutes'
+import kbRoutes from './routes/kbRoutes'
+import licenseRoutes from './routes/licenseRoutes'
+import ragRoutes from './routes/ragRoutes'
+import userRoutes from './routes/userRoutes'
 
 dotenv.config()
 
@@ -45,13 +52,6 @@ app.get('/api-docs.json', (req, res) => {
     servers: [{ url: baseUrl }],
   })
 })
-
-import authRoutes from './routes/authRoutes'
-import ragRoutes from './routes/ragRoutes'
-import licenseRoutes from './routes/licenseRoutes'
-import kbRoutes from './routes/kbRoutes'
-import userRoutes from './routes/userRoutes'
-import configRoutes from './routes/configRoutes'
 
 app.use('/auth', authRoutes)
 app.use('/rag', ragRoutes)

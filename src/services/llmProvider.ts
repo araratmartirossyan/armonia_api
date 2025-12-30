@@ -1,7 +1,8 @@
-import { BaseLanguageModel } from '@langchain/core/language_models/base'
-import { ChatOpenAI } from '@langchain/openai'
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { ChatAnthropic } from '@langchain/anthropic'
+import { BaseLanguageModel } from '@langchain/core/language_models/base'
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
+import { ChatOpenAI } from '@langchain/openai'
+
 import { LLMProvider } from '../entities/KnowledgeBase'
 import { getDefaultAIConfig } from './configService'
 

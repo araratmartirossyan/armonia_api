@@ -1,11 +1,11 @@
-import { Request, Response } from 'express'
 import fs from 'fs'
+import { Request, Response } from 'express'
+
 import { ragService } from '../../services/ragService'
 import { isLicenseValid } from '../licenseController'
-import { documentRepository, kbRepository, licenseRepository } from './kbRepositories'
-import { getPdfParse, resolveExistingPdfPath } from './kbDocumentUtils'
-
 import { UploadedDocumentSummary, UploadError } from '../../types/kb'
+import { getPdfParse, resolveExistingPdfPath } from './kbDocumentUtils'
+import { documentRepository, kbRepository, licenseRepository } from './kbRepositories'
 
 export const uploadPDF = async (req: Request, res: Response) => {
   const { id: kbId } = req.params

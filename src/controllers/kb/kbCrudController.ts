@@ -1,9 +1,10 @@
-import { Request, Response } from 'express'
 import fs from 'fs'
+import { Request, Response } from 'express'
+
 import { ragService } from '../../services/ragService'
-import { kbRepository, documentRepository, licenseRepository } from './kbRepositories'
-import { buildMeta, parsePaginationQuery, pickSort } from '../../utils/pagination'
 import { KBOrder } from '../../types/kb'
+import { buildMeta, parsePaginationQuery, pickSort } from '../../utils/pagination'
+import { kbRepository, documentRepository, licenseRepository } from './kbRepositories'
 
 export const createKnowledgeBase = async (req: Request, res: Response) => {
   const { name, description, documents, promptInstructions } = req.body

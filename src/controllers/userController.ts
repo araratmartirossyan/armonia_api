@@ -1,11 +1,12 @@
 import { Request, Response } from 'express'
-import { AppDataSource } from '../data-source'
-import { CustomerStatus, User } from '../entities/User'
-import { sanitizeUser } from '../utils/userUtils'
-import { buildMeta, parsePaginationQuery, pickSort } from '../utils/pagination'
-import { License } from '../entities/License'
-import { isLicenseValid } from './licenseController'
 import type { FindOptionsOrder } from 'typeorm'
+
+import { AppDataSource } from '../data-source'
+import { License } from '../entities/License'
+import { CustomerStatus, User } from '../entities/User'
+import { buildMeta, parsePaginationQuery, pickSort } from '../utils/pagination'
+import { sanitizeUser } from '../utils/userUtils'
+import { isLicenseValid } from './licenseController'
 
 const userRepository = AppDataSource.getRepository(User)
 const licenseRepository = AppDataSource.getRepository(License)

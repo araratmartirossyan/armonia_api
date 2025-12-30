@@ -1,5 +1,6 @@
-import { Request, Response, NextFunction } from 'express'
-import { verifyToken, TokenPayload } from '../utils/jwt'
+import { NextFunction, Request, Response } from 'express'
+
+import { TokenPayload, verifyToken } from '../utils/jwt'
 
 // Proper module augmentation (avoids `@typescript-eslint/no-namespace`)
 declare module 'express-serve-static-core' {
