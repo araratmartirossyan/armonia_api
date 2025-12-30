@@ -30,8 +30,8 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      # - name: Run linter
-      # run: yarn lint
+      - name: Run linter
+        run: npm run lint
 
       # - name: Run TypeScript compiler
       #   run: npm run tsc --noEmit

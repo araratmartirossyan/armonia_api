@@ -3,6 +3,7 @@ import fs from 'fs'
 import { ragService } from '../../services/ragService'
 import { kbRepository, documentRepository, licenseRepository } from './kbRepositories'
 import { buildMeta, parsePaginationQuery, pickSort } from '../../utils/pagination'
+import { KBOrder } from '../../types/kb'
 
 export const createKnowledgeBase = async (req: Request, res: Response) => {
   const { name, description, documents, promptInstructions } = req.body
@@ -92,7 +93,6 @@ export const listKnowledgeBases = async (req: Request, res: Response) => {
     )
 
     // Avoid TypeORM's deep recursive FindOptionsOrder<> generic (can trigger TS2589).
-    type KBOrder = Partial<Record<'createdAt' | 'updatedAt' | 'name', 'ASC' | 'DESC'>>
     const order: KBOrder = { [sortBy]: sortDir }
     const [items, totalItems] = await kbRepository.findAndCount({
       skip: parsed.skip,

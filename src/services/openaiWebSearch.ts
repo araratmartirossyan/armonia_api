@@ -2,7 +2,7 @@ import axios from 'axios'
 import type {
   OpenAIResponsesCreateRequest,
   OpenAIResponsesCreateResponse,
-  UrlCitation,
+  OpenAIWebSearchResponse,
   WebSearchParams,
 } from '../types/openai'
 
@@ -10,14 +10,10 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null
 }
 
-function extractTextAndCitationsFromResponsesApi(responseBody: unknown): {
-  text: string
-  citations: UrlCitation[]
-} {
-  const citations = new Map<string, UrlCitation>()
+function extractTextFromResponsesApi(responseBody: unknown): string {
   const textParts: string[] = []
 
-  if (!isRecord(responseBody)) return { text: '', citations: [] }
+  if (!isRecord(responseBody)) return ''
 
   const direct = responseBody.output_text
   const directText = typeof direct === 'string' ? direct : ''
@@ -36,39 +32,15 @@ function extractTextAndCitationsFromResponsesApi(responseBody: unknown): {
 
       const maybeText = part.text ?? part.content
       if (typeof maybeText === 'string' && maybeText.trim()) textParts.push(maybeText)
-
-      const annotations = part.annotations
-      const annArr = Array.isArray(annotations) ? annotations : []
-      for (const ann of annArr) {
-        if (!isRecord(ann)) continue
-        const annType = ann.type
-        if (annType !== 'url_citation' && annType !== 'url-citation') continue
-
-        const url =
-          typeof ann.url === 'string'
-            ? ann.url
-            : isRecord(ann.url_citation) && typeof ann.url_citation.url === 'string'
-              ? ann.url_citation.url
-              : ''
-        const title =
-          typeof ann.title === 'string'
-            ? ann.title
-            : isRecord(ann.url_citation) && typeof ann.url_citation.title === 'string'
-              ? ann.url_citation.title
-              : undefined
-
-        if (url) citations.set(url, { url, title })
-      }
     }
   }
 
-  const text = (directText || textParts.join('\n')).trim()
-  return { text, citations: Array.from(citations.values()) }
+  return (directText || textParts.join('\n')).trim()
 }
 
 export async function openAIWebSearchAnswer(
   params: WebSearchParams,
-): Promise<{ answerMarkdown: string; citations: UrlCitation[] }> {
+): Promise<OpenAIWebSearchResponse> {
   const isGpt5Family = /^gpt-5/i.test(params.model)
 
   const input: OpenAIResponsesCreateRequest['input'] = [
@@ -110,7 +82,7 @@ export async function openAIWebSearchAnswer(
     },
   )
 
-  const { text, citations } = extractTextAndCitationsFromResponsesApi(resp.data)
+  const text = extractTextFromResponsesApi(resp.data)
   const outputText = typeof resp.data?.output_text === 'string' ? resp.data.output_text : ''
-  return { answerMarkdown: text || outputText, citations }
+  return { answerMarkdown: text || outputText }
 }

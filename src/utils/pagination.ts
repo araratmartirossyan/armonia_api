@@ -1,6 +1,5 @@
 import { z } from 'zod'
-
-export type SortDir = 'ASC' | 'DESC'
+import { SortDir, PickSortResult, BuildMetaParams, BuildMetaResult } from '../types/pagination'
 
 export function parsePaginationQuery(
   input: unknown,
@@ -50,20 +49,14 @@ export function pickSort<T extends string>(
   sortDir: SortDir,
   allowedSort: readonly T[],
   defaultSortBy: T,
-): { sortBy: T; sortDir: SortDir } {
+): PickSortResult<T> {
   const sortBy = (
     sortByRaw && (allowedSort as readonly string[]).includes(sortByRaw) ? sortByRaw : defaultSortBy
   ) as T
   return { sortBy, sortDir }
 }
 
-export function buildMeta(params: {
-  page: number
-  pageSize: number
-  totalItems: number
-  sortBy: string
-  sortDir: SortDir
-}) {
+export function buildMeta(params: BuildMetaParams): BuildMetaResult {
   const totalPages = Math.max(1, Math.ceil(params.totalItems / params.pageSize))
   return {
     page: params.page,

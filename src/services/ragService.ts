@@ -7,20 +7,21 @@ import { EmbeddingsProviderService } from './embeddingsProvider'
 import { PostgresVectorStore } from '../utils/postgresVectorStore'
 import { pgPool } from '../db/pgPool'
 import { ensurePgVectorSchema } from './rag/ragSchema'
-import { buildSources, formatSourcesSection, loadDocumentNames } from './rag/ragSources'
 import {
   buildGlobalMessages,
   buildGlobalSystemRules,
   buildHistoryMessages,
   buildMessages,
   buildSystemRules,
+  extractText,
+  formatMessagesForPrompt,
   trimInstructions,
 } from './rag/ragPrompt'
 import { getDefaultAIConfig } from './configService'
 import { LLMProvider } from '../entities/KnowledgeBase'
 import { openAIWebSearchAnswer } from './openaiWebSearch'
 import { GLOBAL_FALLBACK_PROMPT_INSTRUCTIONS } from './rag/globalPrompt'
-import type { ChatHistoryItem, IngestMetadata } from '../types/rag'
+import type { ChatHistoryItem, IngestMetadata, KbScore } from '../types/rag'
 
 export class RagService {
   /**
@@ -46,7 +47,7 @@ export class RagService {
       }),
     )
 
-    const best = scores.reduce<{ kbId: string | null; score: number }>(
+    const best = scores.reduce<KbScore>(
       (acc, item) => (item.score > acc.score ? { kbId: item.kbId, score: item.score } : acc),
       { kbId: null, score: Number.NEGATIVE_INFINITY },
     )
@@ -91,13 +92,7 @@ export class RagService {
       // If KB has no vectors yet, fall back to global knowledge using KB instructions.
       return await this.queryGlobal(question, promptInstructions, historyRaw)
     }
-    const docIds = results
-      .map(([doc]: [Document, number]) =>
-        doc.metadata?.documentId ? String(doc.metadata.documentId) : null,
-      )
-      .filter(Boolean) as string[]
-    const docNameMap = await loadDocumentNames(Array.from(new Set(docIds)))
-    const { sources, context } = buildSources(results, docNameMap)
+    const context = results.map(([doc]) => doc.pageContent).join('\n\n---\n\n')
 
     const maxInstrChars = Number(process.env.RAG_MAX_INSTRUCTIONS_CHARS || 6000)
     const trimmedInstructions = trimInstructions(promptInstructions, maxInstrChars)
@@ -106,33 +101,15 @@ export class RagService {
     const messages: BaseMessage[] = buildMessages({ systemRules, history, context, question })
 
     const llm: BaseLanguageModel = await LLMProviderService.getLLM()
-    const toText = (resp: unknown): string => {
-      if (resp && typeof resp === 'object' && 'content' in resp) {
-        const c = (resp as { content?: unknown }).content
-        if (typeof c === 'string') return c
-      }
-      return String(resp)
-    }
     try {
       const response = await llm.invoke(messages)
-      const answer = toText(response)
-      const sourcesSection = formatSourcesSection(sources)
-      return `${answer}${sourcesSection}`
+      return extractText(response)
     } catch {
       // Fallback for providers/configs that don't accept structured chat messages
-      const prompt = `${systemRules}\n\n${history
-        .map(m => {
-          const typeName =
-            typeof (m as unknown as { _getType?: () => string })._getType === 'function'
-              ? (m as unknown as { _getType: () => string })._getType()
-              : (m as object).constructor?.name || 'message'
-          return `${typeName}: ${String((m as unknown as { content?: unknown }).content ?? '')}`
-        })
-        .join('\n')}\n\nCONTEXT:\n\n${context}\n\nQUESTION: ${question}\n\nReturn Markdown MD.`
+      const historyText = formatMessagesForPrompt(history)
+      const prompt = `${systemRules}\n\n${historyText}\n\nCONTEXT:\n\n${context}\n\nQUESTION: ${question}\n\nReturn Markdown MD.`
       const response = await llm.invoke(prompt)
-      const answer = toText(response)
-      const sourcesSection = formatSourcesSection(sources)
-      return `${answer}${sourcesSection}`
+      return extractText(response)
     }
   }
 
@@ -184,13 +161,7 @@ export class RagService {
       return await this.queryGlobal(question, promptInstructions, historyRaw)
     }
 
-    const docIds = merged
-      .map(([doc]: [Document, number]) =>
-        doc.metadata?.documentId ? String(doc.metadata.documentId) : null,
-      )
-      .filter(Boolean) as string[]
-    const docNameMap = await loadDocumentNames(Array.from(new Set(docIds)))
-    const { sources, context } = buildSources(merged, docNameMap)
+    const context = merged.map(([doc]) => doc.pageContent).join('\n\n---\n\n')
 
     const maxInstrChars = Number(process.env.RAG_MAX_INSTRUCTIONS_CHARS || 6000)
     const trimmedInstructions = trimInstructions(promptInstructions, maxInstrChars)
@@ -201,33 +172,15 @@ export class RagService {
     const messages: BaseMessage[] = buildMessages({ systemRules, history, context, question })
 
     const llm: BaseLanguageModel = await LLMProviderService.getLLM()
-    const toText = (resp: unknown): string => {
-      if (resp && typeof resp === 'object' && 'content' in resp) {
-        const c = (resp as { content?: unknown }).content
-        if (typeof c === 'string') return c
-      }
-      return String(resp)
-    }
 
     try {
       const response = await llm.invoke(messages)
-      const answer = toText(response)
-      const sourcesSection = formatSourcesSection(sources)
-      return `${answer}${sourcesSection}`
+      return extractText(response)
     } catch {
-      const prompt = `${systemRules}\n\n${history
-        .map(m => {
-          const typeName =
-            typeof (m as unknown as { _getType?: () => string })._getType === 'function'
-              ? (m as unknown as { _getType: () => string })._getType()
-              : (m as object).constructor?.name || 'message'
-          return `${typeName}: ${String((m as unknown as { content?: unknown }).content ?? '')}`
-        })
-        .join('\n')}\n\nCONTEXT:\n\n${context}\n\nQUESTION: ${question}\n\nReturn Markdown MD.`
+      const historyText = formatMessagesForPrompt(history)
+      const prompt = `${systemRules}\n\n${historyText}\n\nCONTEXT:\n\n${context}\n\nQUESTION: ${question}\n\nReturn Markdown MD.`
       const response = await llm.invoke(prompt)
-      const answer = toText(response)
-      const sourcesSection = formatSourcesSection(sources)
-      return `${answer}${sourcesSection}`
+      return extractText(response)
     }
   }
 
@@ -252,7 +205,7 @@ export class RagService {
 
     if (provider === LLMProvider.OPENAI && process.env.OPENAI_API_KEY) {
       const history: ChatHistoryItem[] = Array.isArray(historyRaw) ? historyRaw.slice(-12) : []
-      const { answerMarkdown, citations } = await openAIWebSearchAnswer({
+      const { answerMarkdown } = await openAIWebSearchAnswer({
         apiKey: process.env.OPENAI_API_KEY,
         model: modelName,
         systemRules,
@@ -266,45 +219,21 @@ export class RagService {
         externalWebAccess: process.env.RAG_GLOBAL_WEB_OFFLINE === '1' ? false : undefined,
       })
 
-      const sourcesSection =
-        citations.length > 0
-          ? `\n\nSources:\n${citations
-              .map((c, idx) => `- Source ${idx + 1}: ${c.title ? `[${c.title}](${c.url})` : c.url}`)
-              .join('\n')}`
-          : ''
-
-      return `${answerMarkdown}${sourcesSection}`
+      return answerMarkdown
     }
 
     const history: BaseMessage[] = buildHistoryMessages(historyRaw)
     const messages: BaseMessage[] = buildGlobalMessages({ systemRules, history, question })
 
     const llm: BaseLanguageModel = await LLMProviderService.getLLM()
-    const toText = (resp: unknown): string => {
-      if (resp && typeof resp === 'object' && 'content' in resp) {
-        const c = (resp as { content?: unknown }).content
-        if (typeof c === 'string') return c
-      }
-      return String(resp)
-    }
     try {
       const response = await llm.invoke(messages)
-      const answer = toText(response)
-      // No doc sources in global mode; keep output clean.
-      return answer
+      return extractText(response)
     } catch {
-      const prompt = `${systemRules}\n\n${history
-        .map(m => {
-          const typeName =
-            typeof (m as unknown as { _getType?: () => string })._getType === 'function'
-              ? (m as unknown as { _getType: () => string })._getType()
-              : (m as object).constructor?.name || 'message'
-          return `${typeName}: ${String((m as unknown as { content?: unknown }).content ?? '')}`
-        })
-        .join('\n')}\n\nQUESTION: ${question}\n\nReturn Markdown MD.`
+      const historyText = formatMessagesForPrompt(history)
+      const prompt = `${systemRules}\n\n${historyText}\n\nQUESTION: ${question}\n\nReturn Markdown MD.`
       const response = await llm.invoke(prompt)
-      const answer = toText(response)
-      return answer
+      return extractText(response)
     }
   }
 

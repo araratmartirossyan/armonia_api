@@ -3,6 +3,15 @@ export type PdfParseResult = {
   pages?: unknown[]
 }
 
-export type PdfParseCtor = new (opts: { data: Buffer }) => {
+export type PdfParseOpts = {
+  data: Buffer
+}
+
+export type PdfParseCtor = new (opts: PdfParseOpts) => {
   getText(): Promise<PdfParseResult>
+}
+
+export type PdfParseModule = {
+  PDFParse?: PdfParseCtor
+  default?: { PDFParse?: PdfParseCtor }
 }

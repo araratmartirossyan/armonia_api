@@ -5,17 +5,7 @@ import { isLicenseValid } from '../licenseController'
 import { documentRepository, kbRepository, licenseRepository } from './kbRepositories'
 import { getPdfParse, resolveExistingPdfPath } from './kbDocumentUtils'
 
-type UploadedDocumentSummary = {
-  id: string
-  fileName: string
-  pageCount: number
-  createdAt: Date
-}
-
-type UploadError = {
-  fileName: string
-  error: string
-}
+import { UploadedDocumentSummary, UploadError } from '../../types/kb'
 
 export const uploadPDF = async (req: Request, res: Response) => {
   const { id: kbId } = req.params

@@ -7,7 +7,7 @@ export type OpenAIWebSearchTool = {
 
 export type OpenAIResponsesCreateRequest = {
   model: string
-  input: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+  input: ChatHistoryItem[]
   tools?: OpenAIWebSearchTool[]
   max_output_tokens?: number
   temperature?: number
@@ -46,8 +46,6 @@ export type OpenAIResponsesCreateResponse = {
   output?: OpenAIOutputItem[]
 }
 
-export type UrlCitation = { url: string; title?: string }
-
 export type WebSearchParams = {
   apiKey: string
   model: string
@@ -60,4 +58,8 @@ export type WebSearchParams = {
   frequencyPenalty?: number | null
   presencePenalty?: number | null
   externalWebAccess?: boolean
+}
+
+export type OpenAIWebSearchResponse = {
+  answerMarkdown: string
 }

@@ -1,12 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { Document } from '../../entities/Document'
-import type { PdfParseCtor } from '../../types/pdf'
-
-type PdfParseModule = {
-  PDFParse?: PdfParseCtor
-  default?: { PDFParse?: PdfParseCtor }
-}
+import type { PdfParseCtor, PdfParseModule } from '../../types/pdf'
 
 // Lazy load pdf-parse only when needed to avoid memory issues at startup
 let PDFParse: PdfParseCtor | null = null
