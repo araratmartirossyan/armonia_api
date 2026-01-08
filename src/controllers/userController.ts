@@ -194,7 +194,15 @@ export const updateUserPassword = async (req: Request, res: Response) => {
   const { id } = req.params
   const { newPassword } = req.body
 
-  if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+  if (newPassword === undefined) {
+    return res.status(400).json({ message: 'Missing required field: newPassword' })
+  }
+
+  if (typeof newPassword !== 'string') {
+    return res.status(400).json({ message: 'newPassword must be a string' })
+  }
+
+  if (newPassword.length < 6) {
     return res.status(400).json({ message: 'Password must be at least 6 characters long' })
   }
 
