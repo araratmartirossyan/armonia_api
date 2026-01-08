@@ -1,5 +1,12 @@
 import { Router } from 'express'
-import { listUsers, getUser, deleteUser, updateUser, getMe } from '../controllers/userController'
+import {
+  listUsers,
+  getUser,
+  deleteUser,
+  updateUser,
+  getMe,
+  updateUserPassword,
+} from '../controllers/userController'
 import { authMiddleware } from '../middlewares/auth'
 import { roleGuard } from '../middlewares/roleGuard'
 import { UserRole } from '../entities/User'
@@ -232,5 +239,72 @@ router.put('/:id', roleGuard([UserRole.ADMIN]), updateUser)
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.delete('/:id', roleGuard([UserRole.ADMIN]), deleteUser)
+
+/**
+ * @swagger
+ * /users/{id}/password:
+ *   patch:
+ *     summary: Update a user password (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - newPassword
+ *             properties:
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 6
+ *                 example: "newSecretPassword123"
+ *     responses:
+ *       200:
+ *         description: Password updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User password updated successfully
+ *       400:
+ *         description: Bad request - Password too short
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden - Admin access required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error updating user password
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.patch('/:id/password', roleGuard([UserRole.ADMIN]), updateUserPassword)
 
 export default router

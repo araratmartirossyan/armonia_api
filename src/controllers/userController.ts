@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import type { FindOptionsOrder } from 'typeorm'
+import bcrypt from 'bcryptjs'
 
 import { AppDataSource } from '../data-source'
 import { License } from '../entities/License'
@@ -186,5 +187,32 @@ export const updateUser = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error)
     return res.status(500).json({ message: 'Error updating user' })
+  }
+}
+
+export const updateUserPassword = async (req: Request, res: Response) => {
+  const { id } = req.params
+  const { newPassword } = req.body
+
+  if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters long' })
+  }
+
+  try {
+    const user = await userRepository.findOne({ where: { id } })
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    const salt = await bcrypt.genSalt(10)
+    user.password = await bcrypt.hash(newPassword, salt)
+
+    await userRepository.save(user)
+
+    return res.json({ message: 'User password updated successfully' })
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({ message: 'Error updating user password' })
   }
 }
